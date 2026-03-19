@@ -224,14 +224,14 @@ export default function App() {
                 ))}
               </div>
 
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
                 <motion.button
                   onClick={() => setIsModalOpen(true)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="flex items-center justify-center w-12 h-12 bg-primary text-on-primary rounded-full shadow-lg hover:shadow-xl transition-all"
+                  className="flex items-center justify-center w-10 h-10 bg-primary/80 text-on-primary rounded-full shadow-md hover:shadow-lg transition-all"
                 >
-                  <Plus size={24} />
+                  <Plus size={20} />
                 </motion.button>
               </div>
             </section>

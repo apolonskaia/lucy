@@ -13,7 +13,6 @@ export default function Sidebar() {
     <aside className="h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-900 flex flex-col py-6 px-4 pt-20 hidden lg:flex z-40">
       <div className="mb-10 px-4">
         <h2 className="text-xl font-extrabold text-primary font-headline">Lucy</h2>
-        <p className="text-[10px] text-on-surface-variant font-medium tracking-wide uppercase">The Mindful Architect</p>
       </div>
 
       <nav className="flex-1 space-y-1">

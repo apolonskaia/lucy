@@ -10,17 +10,24 @@ const typeIcons = {
 };
 
 const typeColors = {
-  job: 'border-primary',
-  learning: 'border-blue-400',
-  wellness: 'border-secondary',
+  job: 'border-amber-500',
+  learning: 'border-violet-500',
+  wellness: 'border-lime-300',
   growth: 'border-indigo-300',
 };
 
+const typeBackgrounds = {
+  job: 'bg-amber-100',
+  learning: 'bg-violet-100',
+  wellness: 'bg-lime-100',
+  growth: 'bg-indigo-100',
+};
+
 const checkColors = {
-  job: 'text-primary',
-  learning: 'text-blue-400',
-  wellness: 'text-secondary',
-  growth: 'text-indigo-300',
+  job: 'text-amber-500',
+  learning: 'text-violet-500',
+  wellness: 'text-lime-300',
+  growth: 'text-indigo-500',
 };
 
 interface TaskItemProps {
@@ -47,9 +54,7 @@ export default function TaskItem({ task, onToggle, onDelete, onDragStart, isDrag
         {task.time}
       </div>
       <div
-        className={`flex-1 flex items-center gap-4 p-4 rounded-xl bg-surface-container-low hover:bg-white border-l-4 ${
-          typeColors[task.type]
-        } transition-all duration-300 shadow-sm hover:shadow-md`}
+        className={`flex-1 flex items-center gap-4 p-4 rounded-xl ${typeBackgrounds[task.type]} transition-all duration-300 shadow-sm hover:shadow-md hover:saturate-150 hover:brightness-95 ${isCompleted ? 'filter grayscale-40 opacity-90' : ''}`}
       >
         <div className="relative flex items-center">
           <input
@@ -61,10 +66,10 @@ export default function TaskItem({ task, onToggle, onDelete, onDragStart, isDrag
         </div>
 
         <div className="flex-1">
-          <h3 className={`text-sm font-headline font-bold text-on-surface ${isCompleted ? 'line-through opacity-50' : ''}`}>
+          <h3 className={`text-sm font-headline font-bold ${isCompleted ? 'text-on-surface-variant/70' : 'text-on-surface'}`}>
             {task.title}
           </h3>
-          <p className={`text-xs text-on-surface-variant ${isCompleted ? 'line-through opacity-50' : ''}`}>
+          <p className={`text-xs ${isCompleted ? 'text-on-surface-variant/70' : 'text-on-surface-variant'}`}>
             {task.category} {task.priority ? `• Priority ${task.priority}` : ''}
           </p>
         </div>
