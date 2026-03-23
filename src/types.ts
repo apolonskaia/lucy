@@ -12,6 +12,12 @@ export interface Task {
 export interface ProgressItem {
   label: string;
   value: number;
-  description: string;
   color: string;
+}
+
+export interface MonthlyGoal {
+  id: string;
+  month: string; // YYYY-MM format
+  title: string;
+  type: 'job' | 'learning' | 'wellness';
 }

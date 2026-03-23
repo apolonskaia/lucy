@@ -1,8 +1,8 @@
-import { LayoutDashboard, Briefcase, GraduationCap, HeartPulse, Plus, HelpCircle, LogOut } from 'lucide-react';
+import { NotebookPen, Briefcase, GraduationCap, HeartPulse, HelpCircle, LogOut } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', active: true },
+  { icon: NotebookPen, label: 'Journal', active: true },
   { icon: Briefcase, label: 'Job Tracker' },
   { icon: GraduationCap, label: 'Learning Hub' },
   { icon: HeartPulse, label: 'Wellness Tracker' },
@@ -11,10 +11,6 @@ const navItems = [
 export default function Sidebar() {
   return (
     <aside className="h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-900 flex flex-col py-6 px-4 pt-20 hidden lg:flex z-40">
-      <div className="mb-10 px-4">
-        <h2 className="text-xl font-extrabold text-primary font-headline">Lucy</h2>
-      </div>
-
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => (
           <a

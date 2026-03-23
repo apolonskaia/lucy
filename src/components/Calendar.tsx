@@ -11,26 +11,37 @@ interface CalendarProps {
 export default function Calendar({ currentMonth, onPrevMonth, onNextMonth, selectedDate, onSelectDate }: CalendarProps) {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthName = monthNames[currentMonth.month];
-  const days = Array.from({ length: 26 }, (_, i) => i + 1);
-  const prevMonthDays = [29, 30];
+  const daysInMonth = new Date(currentMonth.year, currentMonth.month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(currentMonth.year, currentMonth.month, 0).getDate();
+  const firstDayOfMonth = new Date(currentMonth.year, currentMonth.month, 1);
+  const firstDayIndex = (firstDayOfMonth.getDay() + 6) % 7;
+
+  const prevMonthDays = Array.from({ length: firstDayIndex }, (_, index) => {
+    return daysInPrevMonth - firstDayIndex + index + 1;
+  });
+
+  const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
+  const totalVisibleDays = prevMonthDays.length + days.length;
+  const nextMonthDaysCount = (7 - (totalVisibleDays % 7)) % 7;
+  const nextMonthDays = Array.from({ length: nextMonthDaysCount }, (_, index) => index + 1);
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-2xl px-5 py-3 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-headline font-bold text-on-surface">{monthName} {currentMonth.year}</h2>
         <div className="flex gap-1">
-          <button onClick={onPrevMonth} className="p-1.5 rounded-lg hover:bg-surface-container transition-colors">
-            <ChevronLeft size={16} className="text-on-surface-variant" />
+          <button onClick={onPrevMonth} className="rounded-lg hover:bg-surface-container transition-colors">
+            <ChevronLeft size={14} className="text-on-surface-variant" />
           </button>
-          <button onClick={onNextMonth} className="p-1.5 rounded-lg hover:bg-surface-container transition-colors">
-            <ChevronRight size={16} className="text-on-surface-variant" />
+          <button onClick={onNextMonth} className="rounded-lg hover:bg-surface-container transition-colors">
+            <ChevronRight size={14} className="text-on-surface-variant" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center mb-2">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
-          <span key={day} className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">
+      <div className="grid grid-cols-7 gap-1 text-center mb-1">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
+          <span key={day} className="text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest">
             {day}
           </span>
         ))}
@@ -38,7 +49,7 @@ export default function Calendar({ currentMonth, onPrevMonth, onNextMonth, selec
 
       <div className="grid grid-cols-7 gap-1">
         {prevMonthDays.map((day) => (
-          <div key={`prev-${day}`} className="h-8 flex items-center justify-center text-xs text-on-surface-variant/20">
+          <div key={`prev-${day}`} className="h-5 flex items-center justify-center text-[11px] text-on-surface-variant/20">
             {day}
           </div>
         ))}
@@ -48,7 +59,7 @@ export default function Calendar({ currentMonth, onPrevMonth, onNextMonth, selec
             <button
               key={day}
               onClick={() => onSelectDate(day)}
-              className={`h-8 flex items-center justify-center text-xs rounded-lg transition-colors cursor-pointer ${
+              className={`h-5 flex items-center justify-center text-[11px] rounded-lg transition-colors cursor-pointer ${
                 isSelected
                   ? 'bg-primary text-on-primary font-bold shadow-md'
                   : 'text-on-surface-variant font-medium hover:bg-surface-container'
@@ -58,6 +69,11 @@ export default function Calendar({ currentMonth, onPrevMonth, onNextMonth, selec
             </button>
           );
         })}
+        {nextMonthDays.map((day) => (
+          <div key={`next-${day}`} className="h-5 flex items-center justify-center text-[11px] text-on-surface-variant/20">
+            {day}
+          </div>
+        ))}
       </div>
     </div>
   );

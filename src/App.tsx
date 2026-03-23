@@ -1,5 +1,5 @@
-import { Plus, Target } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
+import { useState, useEffect, type DragEvent } from 'react';
 import { motion } from 'motion/react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
@@ -7,7 +7,9 @@ import TaskItem from './components/TaskItem';
 import Calendar from './components/Calendar';
 import ProgressMatrix from './components/ProgressMatrix';
 import NewTaskModal from './components/NewTaskModal';
-import { Task } from './types';
+import MonthlyGoals from './components/MonthlyGoals';
+import { MonthlyGoal, ProgressItem, Task } from './types';
+import { taskConfig } from './taskConfig';
 
 const mockTasks: Task[] = [
   {
@@ -50,8 +52,15 @@ const mockTasks: Task[] = [
 ];
 
 const STORAGE_KEY = 'lucy-tasks-v1';
+const MONTHLY_GOALS_STORAGE_KEY = 'lucy-monthly-goals-v1';
 
 const getToday = () => new Date();
+
+const formatMonthKey = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+};
 
 const formatDateToString = (date: Date): string => {
   const year = date.getFullYear();
@@ -71,19 +80,115 @@ const loadTasks = (): Task[] => {
   }
 };
 
+const createMockMonthlyGoals = (): MonthlyGoal[] => {
+  const month = formatMonthKey(getToday());
+
+  return [
+    {
+      id: 'goal-1',
+      month,
+      title: 'Submit 8 tailored applications',
+      type: 'job',
+    },
+    {
+      id: 'goal-2',
+      month,
+      title: 'Finish one full certification module',
+      type: 'learning',
+    },
+    {
+      id: 'goal-3',
+      month,
+      title: 'Keep a 20-day mindfulness streak',
+      type: 'wellness',
+    },
+  ];
+};
+
+const loadMonthlyGoals = (): MonthlyGoal[] => {
+  try {
+    const raw = localStorage.getItem(MONTHLY_GOALS_STORAGE_KEY);
+    if (!raw) return createMockMonthlyGoals();
+    const parsed: MonthlyGoal[] = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : createMockMonthlyGoals();
+  } catch {
+    return createMockMonthlyGoals();
+  }
+};
+
 export default function App() {
   const today = getToday();
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [currentMonth, setCurrentMonth] = useState({ month: today.getMonth(), year: today.getFullYear() });
+  const [monthlyGoalsMonth, setMonthlyGoalsMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>(() => loadMonthlyGoals());
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  const progressGroups = [
+    { type: 'job' as const, label: taskConfig.job.label, color: taskConfig.job.progress },
+    { type: 'learning' as const, label: taskConfig.learning.label, color: taskConfig.learning.progress },
+    { type: 'wellness' as const, label: taskConfig.wellness.label, color: taskConfig.wellness.progress },
+  ];
+
+  const currentMonthlyGoalsKey = formatMonthKey(monthlyGoalsMonth);
+  const monthlyGoalsForSelectedMonth = monthlyGoals.filter((goal) => goal.month === currentMonthlyGoalsKey);
+
+  const getWeekRange = (date: Date) => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const dayOfWeek = start.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    start.setDate(start.getDate() - daysFromMonday);
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end }; 
+  };
+
+  const isSameDay = (taskDate: Date, targetDate: Date) =>
+    taskDate.getFullYear() === targetDate.getFullYear() &&
+    taskDate.getMonth() === targetDate.getMonth() &&
+    taskDate.getDate() === targetDate.getDate();
+
+  const isSameMonth = (taskDate: Date, targetDate: Date) =>
+    taskDate.getFullYear() === targetDate.getFullYear() && taskDate.getMonth() === targetDate.getMonth();
+
+  const buildProgressItems = (range: 'day' | 'week' | 'month'): ProgressItem[] => {
+    const selectedWeek = getWeekRange(selectedDate);
+
+    const filteredTasks = tasks.filter((task) => {
+      const taskDate = new Date(`${task.date}T00:00:00`);
+
+      if (range === 'day') return isSameDay(taskDate, selectedDate);
+      if (range === 'week') return taskDate >= selectedWeek.start && taskDate <= selectedWeek.end;
+      return isSameMonth(taskDate, selectedDate);
+    });
+
+    return progressGroups.map((group) => {
+      const groupTasks = filteredTasks.filter((task) => task.type === group.type);
+      const completedTasks = groupTasks.filter((task) => task.status === 'completed');
+      const value = groupTasks.length === 0 ? 0 : Math.round((completedTasks.length / groupTasks.length) * 100);
+
+      return {
+        label: group.label,
+        value,
+        color: group.color,
+      };
+    });
+  };
+
+  const progressItems = buildProgressItems(progressView);
+  const isSelectedDateToday = isSameDay(selectedDate, today);
+
   const formatDateDisplay = (date: Date): string => {
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const dayName = dayNames[date.getDay()];
     const monthName = monthNames[date.getMonth()];
     const day = date.getDate();
@@ -115,11 +220,11 @@ export default function App() {
     setDraggedTaskId(taskId);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>, dropIndex: number) => {
     e.preventDefault();
     if (draggedTaskId === null) return;
 
@@ -162,6 +267,22 @@ export default function App() {
     setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
   };
 
+  const handleAddMonthlyGoal = (goal: { title: string; type: 'job' | 'learning' | 'wellness' }) => {
+    setMonthlyGoals((prevGoals) => [
+      ...prevGoals,
+      {
+        id: Math.random().toString(36).slice(2, 11),
+        month: currentMonthlyGoalsKey,
+        title: goal.title,
+        type: goal.type,
+      },
+    ]);
+  };
+
+  const handleDeleteMonthlyGoal = (goalId: string) => {
+    setMonthlyGoals((prevGoals) => prevGoals.filter((goal) => goal.id !== goalId));
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
@@ -169,6 +290,14 @@ export default function App() {
       // silent fail on unsupported environments
     }
   }, [tasks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MONTHLY_GOALS_STORAGE_KEY, JSON.stringify(monthlyGoals));
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [monthlyGoals]);
 
   const handlePrevMonth = () => {
     setCurrentMonth((prev) => {
@@ -188,82 +317,82 @@ export default function App() {
     });
   };
 
+  const handlePrevGoalsMonth = () => {
+    setMonthlyGoalsMonth((prevMonth) => new Date(prevMonth.getFullYear(), prevMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextGoalsMonth = () => {
+    setMonthlyGoalsMonth((prevMonth) => new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 1));
+  };
+
   return (
     <div className="min-h-screen bg-surface">
       <Sidebar />
       <TopBar />
 
       <main className="lg:ml-64 pt-24 pb-12 px-8 min-h-screen">
-        <div className="max-w-7xl mx-auto space-y-10">
+        <div className="max-w-7xl mx-auto space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Daily Blueprint */}
-            <section className="lg:col-span-7 bg-white rounded-2xl p-8 shadow-sm relative pb-20">
-              <div className="flex items-center justify-between mb-8">
-                <h1 className="text-3xl font-extrabold font-headline tracking-tight text-on-surface">Today</h1>
-                <span className="text-xs font-bold text-on-surface-variant bg-surface-container px-3 py-1.5 rounded-full">
-                  {formatDateDisplay(selectedDate)}
-                </span>
-              </div>
+            <div className="lg:col-span-7 space-y-6">
+              {/* Daily Blueprint */}
+              <section className="bg-white rounded-2xl p-8 shadow-sm relative pb-20">
+                <div className="flex items-center justify-between mb-8">
+                  <h1 className="text-3xl font-extrabold font-headline tracking-tight text-on-surface">
+                    {isSelectedDateToday ? 'Today' : formatDateDisplay(selectedDate)}
+                  </h1>
+                  <span className="text-xs font-bold text-on-surface-variant bg-surface-container px-3 py-1.5 rounded-full">
+                    {formatDateDisplay(selectedDate)}
+                  </span>
+                </div>
 
-              <div className="space-y-4 custom-scrollbar overflow-y-auto max-h-[500px] pr-2">
-                {getTasksForSelectedDate().map((task, index) => (
-                  <div
-                    key={task.id}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, index)}
-                    className={dragOverIndex === index ? 'opacity-50' : ''}
+                <div className="space-y-4 custom-scrollbar overflow-y-auto max-h-[500px] pr-2">
+                  {getTasksForSelectedDate().map((task, index) => (
+                    <div
+                      key={task.id}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, index)}
+                      className={dragOverIndex === index ? 'opacity-50' : ''}
+                    >
+                      <TaskItem
+                        task={task}
+                        onToggle={handleToggleTask}
+                        onDelete={handleDeleteTask}
+                        onDragStart={handleDragStart}
+                        isDragging={draggedTaskId === task.id}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                  <motion.button
+                    onClick={() => setIsModalOpen(true)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center justify-center w-10 h-10 bg-primary/80 text-on-primary rounded-full shadow-md hover:shadow-lg transition-all"
                   >
-                    <TaskItem
-                      task={task}
-                      onToggle={handleToggleTask}
-                      onDelete={handleDeleteTask}
-                      onDragStart={handleDragStart}
-                      isDragging={draggedTaskId === task.id}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                <motion.button
-                  onClick={() => setIsModalOpen(true)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center justify-center w-10 h-10 bg-primary/80 text-on-primary rounded-full shadow-md hover:shadow-lg transition-all"
-                >
-                  <Plus size={20} />
-                </motion.button>
-              </div>
-            </section>
+                    <Plus size={20} />
+                  </motion.button>
+                </div>
+              </section>
+            </div>
 
             {/* Right Side: Calendar & Progress */}
-            <aside className="lg:col-span-5 space-y-8">
+            <aside className="lg:col-span-5 space-y-5">
               <Calendar currentMonth={currentMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
-              <ProgressMatrix view={progressView} onViewChange={setProgressView} />
+              <MonthlyGoals
+                goals={monthlyGoalsForSelectedMonth}
+                currentMonth={monthlyGoalsMonth}
+                onPrevMonth={handlePrevGoalsMonth}
+                onNextMonth={handleNextGoalsMonth}
+                onAddGoal={handleAddMonthlyGoal}
+                onDeleteGoal={handleDeleteMonthlyGoal}
+              />
+              <ProgressMatrix view={progressView} onViewChange={setProgressView} items={progressItems} />
             </aside>
           </div>
         </div>
       </main>
-
-      {/* Floating Focus Orb */}
-      <div className="fixed bottom-8 right-8 z-50 group">
-        <div className="flex flex-col items-center gap-2">
-          <motion.span
-            initial={{ opacity: 0, y: 10 }}
-            whileHover={{ opacity: 1, y: 0 }}
-            className="bg-primary text-on-primary text-[10px] font-bold py-1.5 px-4 rounded-full shadow-lg pointer-events-none"
-          >
-            Start Session
-          </motion.span>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="h-16 w-16 rounded-full bg-gradient-to-tr from-primary to-primary-container flex items-center justify-center text-on-primary shadow-2xl"
-          >
-            <Target size={32} />
-          </motion.button>
-        </div>
-      </div>
 
       <NewTaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAddTask={handleAddTask} />
     </div>

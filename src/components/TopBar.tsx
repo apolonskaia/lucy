@@ -1,29 +1,17 @@
-import { Search, Bell, Settings } from 'lucide-react';
+import { Bell, Settings } from 'lucide-react';
 
 export default function TopBar() {
   return (
     <header className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl flex justify-between items-center px-8 h-16 shadow-sm">
       <div className="flex items-center gap-8">
-        <span className="text-2xl font-bold tracking-tighter text-primary font-headline lg:hidden">Lucy</span>
+        <span className="text-2xl font-bold tracking-tighter text-primary font-headline">Lucy</span>
         <nav className="hidden md:flex gap-8">
-          <a href="#" className="text-primary font-bold font-headline text-sm">Dashboard</a>
           <a href="#" className="text-on-surface-variant hover:text-primary transition-colors font-headline text-sm">Job Tracker</a>
           <a href="#" className="text-on-surface-variant hover:text-primary transition-colors font-headline text-sm">Learning Hub</a>
         </nav>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative group hidden sm:block">
-          <div className="flex items-center bg-surface-container px-4 py-1.5 rounded-full transition-all group-focus-within:bg-white group-focus-within:ring-1 ring-primary/20">
-            <Search size={16} className="text-on-surface-variant mr-2" />
-            <input
-              type="text"
-              placeholder="Search insights..."
-              className="bg-transparent border-none focus:ring-0 text-sm w-48 font-sans"
-            />
-          </div>
-        </div>
-
         <button className="p-2 rounded-full hover:bg-surface-container transition-colors">
           <Bell size={20} className="text-primary" />
         </button>
