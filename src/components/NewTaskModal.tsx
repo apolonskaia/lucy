@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
+import { taskConfig } from '../taskConfig';
 
 interface NewTaskModalProps {
   isOpen: boolean;
@@ -19,23 +20,7 @@ export default function NewTaskModal({ isOpen, onClose, onAddTask }: NewTaskModa
     { value: 'wellness' as const, label: 'Wellness' },
   ];
 
-  const categoryStyles = {
-    job: {
-      active: 'bg-amber-500 text-white shadow-md',
-      inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100',
-    },
-    learning: {
-      active: 'bg-violet-500 text-white shadow-md',
-      inactive: 'bg-violet-50 text-violet-700 hover:bg-violet-100',
-    },
-    wellness: {
-      active: 'bg-lime-300 text-white shadow-md',
-      inactive: 'bg-lime-50 text-lime-700 hover:bg-lime-100',
-    },
-  };
-
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
       onAddTask({ title, time, type });
@@ -104,8 +89,8 @@ export default function NewTaskModal({ isOpen, onClose, onAddTask }: NewTaskModa
                   onClick={() => setType(option.value)}
                   className={`flex-1 py-2 px-3 rounded-lg font-headline font-bold text-sm transition-all ${
                     type === option.value
-                      ? categoryStyles[option.value].active
-                      : categoryStyles[option.value].inactive
+                      ? taskConfig[option.value].badgeActive
+                      : taskConfig[option.value].badgeInactive
                   }`}
                 >
                   {option.label}

@@ -1,34 +1,7 @@
-import { GripVertical, GraduationCap, Leaf, Briefcase, Target, Trash2 } from 'lucide-react';
+import { GripVertical, Trash2 } from 'lucide-react';
 import { Task } from '../types';
 import { motion } from 'motion/react';
-
-const typeIcons = {
-  job: Briefcase,
-  learning: GraduationCap,
-  wellness: Leaf,
-  growth: Target,
-};
-
-const typeColors = {
-  job: 'border-amber-500',
-  learning: 'border-violet-500',
-  wellness: 'border-lime-300',
-  growth: 'border-indigo-300',
-};
-
-const typeBackgrounds = {
-  job: 'bg-amber-100',
-  learning: 'bg-violet-100',
-  wellness: 'bg-lime-100',
-  growth: 'bg-indigo-100',
-};
-
-const checkColors = {
-  job: 'text-amber-500',
-  learning: 'text-violet-500',
-  wellness: 'text-lime-300',
-  growth: 'text-indigo-500',
-};
+import { taskConfig } from '../taskConfig';
 
 interface TaskItemProps {
   task: Task;
@@ -39,8 +12,9 @@ interface TaskItemProps {
 }
 
 export default function TaskItem({ task, onToggle, onDelete, onDragStart, isDragging }: TaskItemProps) {
-  const Icon = typeIcons[task.type];
   const isCompleted = task.status === 'completed';
+  const palette = taskConfig[task.type];
+  const Icon = palette.iconComponent;
 
   return (
     <motion.div
@@ -54,14 +28,14 @@ export default function TaskItem({ task, onToggle, onDelete, onDragStart, isDrag
         {task.time}
       </div>
       <div
-        className={`flex-1 flex items-center gap-4 p-4 rounded-xl ${typeBackgrounds[task.type]} transition-all duration-300 shadow-sm hover:shadow-md hover:saturate-150 hover:brightness-95 ${isCompleted ? 'filter grayscale-40 opacity-90' : ''}`}
+        className={`flex-1 flex items-center gap-4 p-4 rounded-xl ${palette.background} ${palette.hover} transition-all duration-300 shadow-sm hover:shadow-md ${isCompleted ? 'filter grayscale-40 opacity-90' : ''}`}
       >
         <div className="relative flex items-center">
           <input
             type="checkbox"
             checked={isCompleted}
             onChange={() => onToggle(task.id)}
-            className={`w-5 h-5 rounded border-on-surface-variant/20 ${checkColors[task.type]} focus:ring-0 transition-all cursor-pointer`}
+            className={`w-5 h-5 rounded border-on-surface-variant/20 ${palette.icon} focus:ring-0 transition-all cursor-pointer`}
           />
         </div>
 
@@ -69,12 +43,14 @@ export default function TaskItem({ task, onToggle, onDelete, onDragStart, isDrag
           <h3 className={`text-sm font-headline font-bold ${isCompleted ? 'text-on-surface-variant/70' : 'text-on-surface'}`}>
             {task.title}
           </h3>
-          <p className={`text-xs ${isCompleted ? 'text-on-surface-variant/70' : 'text-on-surface-variant'}`}>
-            {task.category} {task.priority ? `• Priority ${task.priority}` : ''}
-          </p>
+          {task.priority && (
+            <p className={`text-xs ${isCompleted ? 'text-on-surface-variant/70' : 'text-on-surface-variant'}`}>
+              Priority {task.priority}
+            </p>
+          )}
         </div>
 
-        {Icon && <Icon size={18} className={`${checkColors[task.type]} ${isCompleted ? 'opacity-50' : ''}`} />}
+        {Icon && <Icon size={18} className={`${palette.icon} ${isCompleted ? 'opacity-50' : ''}`} />}
 
         <button
           onClick={() => onDelete(task.id)}
