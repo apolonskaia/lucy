@@ -15,7 +15,6 @@ const mockTasks: Task[] = [
   {
     id: '1',
     date: '2026-03-19',
-    time: '09:00',
     title: 'Review Lead Architect role at Aethel',
     category: 'Job Search',
     priority: 'High',
@@ -25,7 +24,6 @@ const mockTasks: Task[] = [
   {
     id: '2',
     date: '2026-03-19',
-    time: '10:30',
     title: 'Finish Advanced Parametric Design Module',
     category: 'Learning',
     status: 'pending',
@@ -34,7 +32,6 @@ const mockTasks: Task[] = [
   {
     id: '3',
     date: '2026-03-19',
-    time: '14:00',
     title: 'Morning Mindfulness (Breathwork)',
     category: 'Wellness',
     status: 'completed',
@@ -43,11 +40,10 @@ const mockTasks: Task[] = [
   {
     id: '4',
     date: '2026-03-19',
-    time: '16:30',
     title: 'Sketching conceptual frames for Portfolio',
-    category: 'Growth',
+    category: 'Learning',
     status: 'pending',
-    type: 'growth',
+    type: 'learning',
   },
 ];
 
@@ -73,8 +69,21 @@ const loadTasks = (): Task[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return mockTasks;
-    const parsed: Task[] = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : mockTasks;
+    const parsed = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) return mockTasks;
+
+    return parsed.map((task) => {
+      if (task?.type === 'growth') {
+        return {
+          ...task,
+          category: 'Learning',
+          type: 'learning',
+        } satisfies Task;
+      }
+
+      return task as Task;
+    });
   } catch {
     return mockTasks;
   }
@@ -125,6 +134,7 @@ export default function App() {
   const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>(() => loadMonthlyGoals());
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -133,9 +143,39 @@ export default function App() {
     { type: 'learning' as const, label: taskConfig.learning.label, color: taskConfig.learning.progress },
     { type: 'wellness' as const, label: taskConfig.wellness.label, color: taskConfig.wellness.progress },
   ];
+  const taskTypes = ['job', 'learning', 'wellness'] as const;
 
   const currentMonthlyGoalsKey = formatMonthKey(monthlyGoalsMonth);
   const monthlyGoalsForSelectedMonth = monthlyGoals.filter((goal) => goal.month === currentMonthlyGoalsKey);
+  const taskTitleSuggestions = taskTypes.reduce<Record<'job' | 'learning' | 'wellness', string[]>>(
+    (accumulator, taskType) => {
+      const titleCounts = tasks
+        .filter((task) => task.type === taskType)
+        .reduce<Record<string, number>>((counts, task) => {
+          const trimmedTitle = task.title.trim();
+
+          if (!trimmedTitle) {
+            return counts;
+          }
+
+          counts[trimmedTitle] = (counts[trimmedTitle] ?? 0) + 1;
+          return counts;
+        }, {});
+
+      accumulator[taskType] = Object.entries(titleCounts)
+        .map(([title, count]) => [title, count] as [string, number])
+        .filter(([, count]) => count > 1)
+        .sort((firstEntry, secondEntry) => secondEntry[1] - firstEntry[1] || firstEntry[0].localeCompare(secondEntry[0]))
+        .map(([title]) => title);
+
+      return accumulator;
+    },
+    {
+      job: [],
+      learning: [],
+      wellness: [],
+    }
+  );
 
   const getWeekRange = (date: Date) => {
     const start = new Date(date);
@@ -242,22 +282,47 @@ export default function App() {
     setDragOverIndex(null);
   };
 
-  const handleAddTask = (newTaskData: { title: string; time: string; type: 'job' | 'learning' | 'wellness' | 'growth' }) => {
+  const handleOpenNewTaskModal = () => {
+    setEditingTask(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsModalOpen(true);
+  };
+
+  const handleSubmitTask = (taskData: { title: string; type: 'job' | 'learning' | 'wellness' }) => {
     const categoryMap = {
       job: 'Job Search',
       learning: 'Learning',
       wellness: 'Wellness',
-      growth: 'Growth',
     };
 
+    if (editingTask) {
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === editingTask.id
+            ? {
+                ...task,
+                title: taskData.title,
+                category: categoryMap[taskData.type],
+                type: taskData.type,
+              }
+            : task
+        )
+      );
+      setEditingTask(null);
+      return;
+    }
+
     const newTask: Task = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).slice(2, 11),
       date: formatDateToString(selectedDate),
-      title: newTaskData.title,
-      time: newTaskData.time,
-      category: categoryMap[newTaskData.type],
+      title: taskData.title,
+      category: categoryMap[taskData.type],
       status: 'pending',
-      type: newTaskData.type,
+      type: taskData.type,
     };
 
     setTasks((prevTasks) => [...prevTasks, newTask]);
@@ -265,6 +330,11 @@ export default function App() {
 
   const handleDeleteTask = (taskId: string) => {
     setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+  };
+
+  const handleCloseTaskModal = () => {
+    setEditingTask(null);
+    setIsModalOpen(false);
   };
 
   const handleAddMonthlyGoal = (goal: { title: string; type: 'job' | 'learning' | 'wellness' }) => {
@@ -277,6 +347,20 @@ export default function App() {
         type: goal.type,
       },
     ]);
+  };
+
+  const handleUpdateMonthlyGoal = (goalId: string, updatedGoal: { title: string; type: 'job' | 'learning' | 'wellness' }) => {
+    setMonthlyGoals((prevGoals) =>
+      prevGoals.map((goal) =>
+        goal.id === goalId
+          ? {
+              ...goal,
+              title: updatedGoal.title,
+              type: updatedGoal.type,
+            }
+          : goal
+      )
+    );
   };
 
   const handleDeleteMonthlyGoal = (goalId: string) => {
@@ -356,6 +440,7 @@ export default function App() {
                       <TaskItem
                         task={task}
                         onToggle={handleToggleTask}
+                        onEdit={handleEditTask}
                         onDelete={handleDeleteTask}
                         onDragStart={handleDragStart}
                         isDragging={draggedTaskId === task.id}
@@ -366,7 +451,7 @@ export default function App() {
 
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
                   <motion.button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={handleOpenNewTaskModal}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className="flex items-center justify-center w-10 h-10 bg-primary/80 text-on-primary rounded-full shadow-md hover:shadow-lg transition-all"
@@ -386,6 +471,7 @@ export default function App() {
                 onPrevMonth={handlePrevGoalsMonth}
                 onNextMonth={handleNextGoalsMonth}
                 onAddGoal={handleAddMonthlyGoal}
+                onUpdateGoal={handleUpdateMonthlyGoal}
                 onDeleteGoal={handleDeleteMonthlyGoal}
               />
               <ProgressMatrix view={progressView} onViewChange={setProgressView} items={progressItems} />
@@ -394,7 +480,13 @@ export default function App() {
         </div>
       </main>
 
-      <NewTaskModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAddTask={handleAddTask} />
+      <NewTaskModal
+        isOpen={isModalOpen}
+        onClose={handleCloseTaskModal}
+        onSubmitTask={handleSubmitTask}
+        initialTask={editingTask}
+        suggestions={taskTitleSuggestions}
+      />
     </div>
   );
 }

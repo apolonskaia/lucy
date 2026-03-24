@@ -1,18 +1,29 @@
 import { X } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { taskConfig } from '../taskConfig';
+import { Task } from '../types';
 
 interface NewTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddTask: (task: { title: string; time: string; type: 'job' | 'learning' | 'wellness' | 'growth' }) => void;
+  onSubmitTask: (task: { title: string; type: 'job' | 'learning' | 'wellness' }) => void;
+  initialTask?: Task | null;
+  suggestions: Record<'job' | 'learning' | 'wellness', string[]>;
 }
 
-export default function NewTaskModal({ isOpen, onClose, onAddTask }: NewTaskModalProps) {
+export default function NewTaskModal({
+  isOpen,
+  onClose,
+  onSubmitTask,
+  initialTask,
+  suggestions,
+}: NewTaskModalProps) {
   const [title, setTitle] = useState('');
-  const [time, setTime] = useState('09:00');
-  const [type, setType] = useState<'job' | 'learning' | 'wellness' | 'growth'>('job');
+  const [type, setType] = useState<'job' | 'learning' | 'wellness'>('job');
+  const suggestionListId = useId();
+
+  const isEditing = Boolean(initialTask);
 
   const categoryOptions = [
     { value: 'job' as const, label: 'Work' },
@@ -20,15 +31,22 @@ export default function NewTaskModal({ isOpen, onClose, onAddTask }: NewTaskModa
     { value: 'wellness' as const, label: 'Wellness' },
   ];
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (title.trim()) {
-      onAddTask({ title, time, type });
-      setTitle('');
-      setTime('09:00');
-      setType('job');
-      onClose();
-    }
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setTitle(initialTask?.title ?? '');
+    setType(initialTask?.type ?? 'job');
+  }, [initialTask, isOpen]);
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!title.trim()) return;
+
+    onSubmitTask({ title: title.trim(), type });
+    setTitle('');
+    setType('job');
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -42,10 +60,11 @@ export default function NewTaskModal({ isOpen, onClose, onAddTask }: NewTaskModa
         className="bg-white rounded-2xl p-8 shadow-xl w-full max-w-md mx-4"
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-headline font-bold text-on-surface">New Task</h2>
+          <h2 className="text-2xl font-headline font-bold text-on-surface">{isEditing ? 'Edit Task' : 'New Task'}</h2>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-surface-container transition-colors"
+            aria-label="Close task modal"
           >
             <X size={20} className="text-on-surface-variant" />
           </button>
@@ -53,33 +72,8 @@ export default function NewTaskModal({ isOpen, onClose, onAddTask }: NewTaskModa
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-headline font-bold text-on-surface mb-2">
-              Task Title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter task description..."
-              className="w-full px-4 py-2 rounded-lg border border-outline-variant bg-surface-container-low focus:bg-white focus:border-primary focus:outline-none transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-headline font-bold text-on-surface mb-2">
-              Time
-            </label>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-outline-variant bg-surface-container-low focus:bg-white focus:border-primary focus:outline-none transition-all"
-            />
-          </div>
-
-          <div>
             <label className="block text-sm font-headline font-bold text-on-surface mb-3">
-              Category
+              Group
             </label>
             <div className="flex gap-3">
               {categoryOptions.map((option) => (
@@ -87,16 +81,40 @@ export default function NewTaskModal({ isOpen, onClose, onAddTask }: NewTaskModa
                   key={option.value}
                   type="button"
                   onClick={() => setType(option.value)}
-                  className={`flex-1 py-2 px-3 rounded-lg font-headline font-bold text-sm transition-all ${
+                  className={`py-2 px-3 rounded-lg font-headline font-bold text-sm transition-all ${
                     type === option.value
                       ? taskConfig[option.value].badgeActive
                       : taskConfig[option.value].badgeInactive
-                  }`}
+                  } flex-1`}
                 >
                   {option.label}
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-headline font-bold text-on-surface mb-2">
+              Task Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              list={suggestionListId}
+              placeholder={suggestions[type].length > 0 ? 'Choose or type a task...' : 'Enter task description...'}
+              className="w-full px-4 py-2 rounded-lg border border-outline-variant bg-surface-container-low focus:bg-white focus:border-primary focus:outline-none transition-all"
+            />
+            <datalist id={suggestionListId}>
+              {suggestions[type].map((suggestion) => (
+                <option key={suggestion} value={suggestion} />
+              ))}
+            </datalist>
+            {suggestions[type].length > 0 && (
+              <p className="mt-2 text-xs text-on-surface-variant">
+                Suggestions show the most frequently repeated {taskConfig[type].label.toLowerCase()} tasks.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -111,7 +129,7 @@ export default function NewTaskModal({ isOpen, onClose, onAddTask }: NewTaskModa
               type="submit"
               className="flex-1 py-2 px-4 rounded-lg font-headline font-bold text-sm bg-primary text-on-primary hover:shadow-lg transition-all"
             >
-              Add Task
+              {isEditing ? 'Save Task' : 'Add Task'}
             </button>
           </div>
         </form>

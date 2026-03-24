@@ -1,10 +1,15 @@
 import { Bell, Settings } from 'lucide-react';
 
 export default function TopBar() {
+  const faviconSrc = `${import.meta.env.BASE_URL}favicon.svg`;
+
   return (
     <header className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl flex justify-between items-center px-8 h-16 shadow-sm">
       <div className="flex items-center gap-8">
-        <span className="text-2xl font-bold tracking-tighter text-primary font-headline">Lucy</span>
+        <div className="flex items-center gap-3">
+          <img src={faviconSrc} alt="Lucy favicon" className="h-7 w-7 shrink-0" />
+          <span className="text-2xl font-bold tracking-tighter text-primary font-headline">Lucy</span>
+        </div>
         <nav className="hidden md:flex gap-8">
           <a href="#" className="text-on-surface-variant hover:text-primary transition-colors font-headline text-sm">Job Tracker</a>
           <a href="#" className="text-on-surface-variant hover:text-primary transition-colors font-headline text-sm">Learning Hub</a>

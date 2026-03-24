@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { MonthlyGoal } from '../types';
 import { taskConfig } from '../taskConfig';
 
@@ -24,6 +24,7 @@ interface MonthlyGoalsProps {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onAddGoal: (goal: { title: string; type: 'job' | 'learning' | 'wellness' }) => void;
+  onUpdateGoal: (goalId: string, goal: { title: string; type: 'job' | 'learning' | 'wellness' }) => void;
   onDeleteGoal: (goalId: string) => void;
 }
 
@@ -33,15 +34,48 @@ export default function MonthlyGoals({
   onPrevMonth,
   onNextMonth,
   onAddGoal,
+  onUpdateGoal,
   onDeleteGoal,
 }: MonthlyGoalsProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'job' | 'learning' | 'wellness'>('job');
+  const [editingGoal, setEditingGoal] = useState<MonthlyGoal | null>(null);
 
-  const handleAddGoal = () => {
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    setTitle(editingGoal?.title ?? '');
+    setType(editingGoal?.type ?? 'job');
+  }, [editingGoal, isModalOpen]);
+
+  const handleSaveGoal = () => {
     if (!title.trim()) return;
-    onAddGoal({ title: title.trim(), type });
+
+    if (editingGoal) {
+      onUpdateGoal(editingGoal.id, { title: title.trim(), type });
+    } else {
+      onAddGoal({ title: title.trim(), type });
+    }
+
+    setTitle('');
+    setType('job');
+    setEditingGoal(null);
+    setIsModalOpen(false);
+  };
+
+  const handleOpenNewGoalModal = () => {
+    setEditingGoal(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditGoalModal = (goal: MonthlyGoal) => {
+    setEditingGoal(goal);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setEditingGoal(null);
     setTitle('');
     setType('job');
     setIsModalOpen(false);
@@ -64,7 +98,7 @@ export default function MonthlyGoals({
           </div>
 
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleOpenNewGoalModal}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/80 text-on-primary shadow-md hover:shadow-lg transition-all"
             aria-label="Add monthly goal"
           >
@@ -94,6 +128,14 @@ export default function MonthlyGoals({
                   </div>
 
                   <button
+                    onClick={() => handleOpenEditGoalModal(goal)}
+                    className="text-on-surface-variant/50 hover:text-on-surface opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/60"
+                    aria-label="Edit monthly goal"
+                  >
+                    <Pencil size={16} />
+                  </button>
+
+                  <button
                     onClick={() => onDeleteGoal(goal.id)}
                     className="text-on-surface-variant/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50"
                     aria-label="Delete monthly goal"
@@ -111,9 +153,11 @@ export default function MonthlyGoals({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-headline font-bold text-on-surface">New Monthly Goal</h3>
+              <h3 className="text-2xl font-headline font-bold text-on-surface">
+                {editingGoal ? 'Edit Monthly Goal' : 'New Monthly Goal'}
+              </h3>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={handleCloseModal}
                 className="rounded-lg p-2 hover:bg-surface-container transition-colors text-on-surface-variant"
                 aria-label="Close monthly goal modal"
               >
@@ -154,17 +198,17 @@ export default function MonthlyGoals({
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
                   className="rounded-lg px-4 py-2 text-sm font-headline font-bold bg-surface-container hover:bg-surface-container-high transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={handleAddGoal}
+                  onClick={handleSaveGoal}
                   className="rounded-lg px-4 py-2 text-sm font-headline font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors"
                 >
-                  Add Goal
+                  {editingGoal ? 'Save Goal' : 'Add Goal'}
                 </button>
               </div>
             </div>

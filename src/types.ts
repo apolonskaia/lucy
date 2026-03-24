@@ -1,12 +1,12 @@
 export interface Task {
   id: string;
   date: string; // YYYY-MM-DD format
-  time: string;
+  time?: string;
   title: string;
   category: string;
   priority?: string;
   status: 'pending' | 'completed';
-  type: 'job' | 'learning' | 'wellness' | 'growth';
+  type: 'job' | 'learning' | 'wellness';
 }
 
 export interface ProgressItem {
