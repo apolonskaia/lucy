@@ -1,4 +1,4 @@
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Pencil, Trash2 } from 'lucide-react';
 import { Task } from '../types';
 import { motion } from 'motion/react';
 import { taskConfig } from '../taskConfig';
@@ -6,12 +6,13 @@ import { taskConfig } from '../taskConfig';
 interface TaskItemProps {
   task: Task;
   onToggle: (taskId: string) => void;
+  onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   onDragStart?: (taskId: string) => void;
   isDragging?: boolean;
 }
 
-export default function TaskItem({ task, onToggle, onDelete, onDragStart, isDragging }: TaskItemProps) {
+export default function TaskItem({ task, onToggle, onEdit, onDelete, onDragStart, isDragging }: TaskItemProps) {
   const isCompleted = task.status === 'completed';
   const palette = taskConfig[task.type];
   const Icon = palette.iconComponent;
@@ -22,13 +23,10 @@ export default function TaskItem({ task, onToggle, onDelete, onDragStart, isDrag
       animate={{ opacity: 1, y: 0 }}
       draggable
       onDragStart={() => onDragStart?.(task.id)}
-      className={`flex gap-4 group ${isDragging ? 'opacity-50' : ''}`}
+      className={`flex gap-3 group ${isDragging ? 'opacity-50' : ''}`}
     >
-      <div className="w-12 flex-shrink-0 text-[10px] font-extrabold font-headline text-primary/40 pt-5 text-right">
-        {task.time}
-      </div>
       <div
-        className={`flex-1 flex items-center gap-4 p-4 rounded-xl ${palette.background} ${palette.hover} transition-all duration-300 shadow-sm hover:shadow-md ${isCompleted ? 'filter grayscale-40 opacity-90' : ''}`}
+        className={`flex-1 flex items-center gap-3 px-3.5 py-3 rounded-xl ${palette.background} ${palette.hover} transition-all duration-300 shadow-sm hover:shadow-md ${isCompleted ? 'filter grayscale-40 opacity-90' : ''}`}
       >
         <div className="relative flex items-center">
           <input
@@ -51,6 +49,14 @@ export default function TaskItem({ task, onToggle, onDelete, onDragStart, isDrag
         </div>
 
         {Icon && <Icon size={18} className={`${palette.icon} ${isCompleted ? 'opacity-50' : ''}`} />}
+
+        <button
+          onClick={() => onEdit(task)}
+          className="text-on-surface-variant/50 hover:text-on-surface opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/60"
+          aria-label="Edit task"
+        >
+          <Pencil size={16} />
+        </button>
 
         <button
           onClick={() => onDelete(task.id)}

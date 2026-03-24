@@ -1,4 +1,4 @@
-import { Briefcase, GraduationCap, Leaf, Target } from 'lucide-react';
+import { Briefcase, GraduationCap, Leaf } from 'lucide-react';
 
 export const taskConfig = {
   job: {
@@ -33,16 +33,5 @@ export const taskConfig = {
     badgeInactive: 'bg-lime-50 text-lime-700 hover:bg-lime-100',
     badgeActive: 'bg-lime-300 text-white shadow-md',
     progress: 'bg-lime-200',
-  },
-  growth: {
-    label: 'Growth',
-    iconComponent: Target,
-    background: 'bg-indigo-100',
-    hover: 'hover:saturate-150 hover:brightness-95',
-    icon: 'text-indigo-500',
-    border: 'border-indigo-300',
-    badgeInactive: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100',
-    badgeActive: 'bg-indigo-400 text-white shadow-md',
-    progress: 'bg-indigo-200',
   },
 } as const;
