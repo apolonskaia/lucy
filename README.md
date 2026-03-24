@@ -1,7 +1,10 @@
 # Lucy
 
 Vibecoding a productivity+wlb web app for myself.
-Data saved locally currently, will move to a DB soon. 
+
+
+Currently, it has functionality to create daily tasks, monthly goals, and calculate daily, weekly, and monthly progress. 
+Later, adding job search assistance (logging, tracking, maybe automatic alerts for new job postings, CV tracking, and suggestions to make changes to CV to match JD) 
 
 Stay tuned
 
