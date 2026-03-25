@@ -15,6 +15,50 @@ export interface ProgressItem {
   color: string;
 }
 
+export type AppPage = 'journal' | 'job-search' | 'learning-hub' | 'wellness-tracker';
+
+export type JobApplicationType = 'tech' | 'biotech';
+
+export type JobApplicationStatus =
+  | 'saved'
+  | 'applied'
+  | 'interview'
+  | 'offer'
+  | 'rejected'
+  | 'rejected-after-interview'
+  | 'withdrawn';
+
+export interface CvAnalysisSectionSuggestion {
+  section: string;
+  rationale: string;
+  suggestedRewrite: string;
+}
+
+export interface CvAnalysis {
+  summary: string;
+  overallFit: string;
+  matchScore: number;
+  strengths: string[];
+  missingKeywords: string[];
+  suggestedChanges: string[];
+  sectionSuggestions: CvAnalysisSectionSuggestion[];
+}
+
+export interface JobApplication {
+  id: string;
+  jobTitle: string;
+  company: string;
+  type: JobApplicationType;
+  applicationDate: string;
+  status: JobApplicationStatus;
+  link: string;
+  cvFileName?: string;
+  cvText?: string;
+  jobDescription?: string;
+  cvAnalysis?: CvAnalysis | null;
+  cvAnalyzedAt?: string;
+}
+
 export interface MonthlyGoal {
   id: string;
   month: string; // YYYY-MM format

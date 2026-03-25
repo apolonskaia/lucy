@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useState, useEffect, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { motion } from 'motion/react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
@@ -8,7 +8,8 @@ import Calendar from './components/Calendar';
 import ProgressMatrix from './components/ProgressMatrix';
 import NewTaskModal from './components/NewTaskModal';
 import MonthlyGoals from './components/MonthlyGoals';
-import { MonthlyGoal, ProgressItem, Task } from './types';
+import JobApplicationTracker from './components/JobApplicationTracker';
+import { AppPage, JobApplication, MonthlyGoal, ProgressItem, Task } from './types';
 import { taskConfig } from './taskConfig';
 
 const mockTasks: Task[] = [
@@ -49,8 +50,39 @@ const mockTasks: Task[] = [
 
 const STORAGE_KEY = 'lucy-tasks-v1';
 const MONTHLY_GOALS_STORAGE_KEY = 'lucy-monthly-goals-v1';
+const JOB_APPLICATIONS_STORAGE_KEY = 'lucy-job-applications-v1';
+const appPages: AppPage[] = ['journal', 'job-search', 'learning-hub', 'wellness-tracker'];
+
+const pageConfig: Record<AppPage, { title: string; description: string; taskType?: Task['type'] }> = {
+  journal: {
+    title: 'Journal',
+    description: 'Your daily planning view for tasks, calendar, monthly goals, and progress.',
+  },
+  'job-search': {
+    title: 'Job Search',
+    description: 'Keep applications, interview prep, and outreach in one place.',
+    taskType: 'job',
+  },
+  'learning-hub': {
+    title: 'Learning Hub',
+    description: 'Track study sessions, courses, and repeated learning habits.',
+    taskType: 'learning',
+  },
+  'wellness-tracker': {
+    title: 'Wellness Tracker',
+    description: 'Review routines, recovery habits, and monthly wellness goals.',
+    taskType: 'wellness',
+  },
+};
 
 const getToday = () => new Date();
+
+const getPageFromHash = (): AppPage => {
+  if (typeof window === 'undefined') return 'journal';
+
+  const hash = window.location.hash.replace('#', '');
+  return appPages.includes(hash as AppPage) ? (hash as AppPage) : 'journal';
+};
 
 const formatMonthKey = (date: Date): string => {
   const year = date.getFullYear();
@@ -125,13 +157,47 @@ const loadMonthlyGoals = (): MonthlyGoal[] => {
   }
 };
 
+const createMockJobApplications = (): JobApplication[] => [
+  {
+    id: 'job-1',
+    jobTitle: 'Senior Computational Biologist',
+    company: 'Helix Forge',
+    type: 'biotech',
+    applicationDate: '2026-03-18',
+    status: 'interview',
+    link: 'https://example.com/jobs/helix-forge-computational-biologist',
+  },
+  {
+    id: 'job-2',
+    jobTitle: 'Applied AI Research Engineer',
+    company: 'Astra North',
+    type: 'tech',
+    applicationDate: '2026-03-15',
+    status: 'applied',
+    link: 'https://example.com/jobs/astra-north-ai-research-engineer',
+  },
+];
+
+const loadJobApplications = (): JobApplication[] => {
+  try {
+    const raw = localStorage.getItem(JOB_APPLICATIONS_STORAGE_KEY);
+    if (!raw) return createMockJobApplications();
+    const parsed: JobApplication[] = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : createMockJobApplications();
+  } catch {
+    return createMockJobApplications();
+  }
+};
+
 export default function App() {
   const today = getToday();
+  const [activePage, setActivePage] = useState<AppPage>(() => getPageFromHash());
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [currentMonth, setCurrentMonth] = useState({ month: today.getMonth(), year: today.getFullYear() });
   const [monthlyGoalsMonth, setMonthlyGoalsMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
   const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>(() => loadMonthlyGoals());
+  const [jobApplications, setJobApplications] = useState<JobApplication[]>(() => loadJobApplications());
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -188,7 +254,7 @@ export default function App() {
     end.setDate(start.getDate() + 6);
     end.setHours(23, 59, 59, 999);
 
-    return { start, end }; 
+    return { start, end };
   };
 
   const isSameDay = (taskDate: Date, targetDate: Date) =>
@@ -260,12 +326,12 @@ export default function App() {
     setDraggedTaskId(taskId);
   };
 
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
   };
 
-  const handleDrop = (e: DragEvent<HTMLDivElement>, dropIndex: number) => {
-    e.preventDefault();
+  const handleDrop = (event: DragEvent<HTMLDivElement>, dropIndex: number) => {
+    event.preventDefault();
     if (draggedTaskId === null) return;
 
     const draggedIndex = tasks.findIndex((task) => task.id === draggedTaskId);
@@ -383,6 +449,23 @@ export default function App() {
     }
   }, [monthlyGoals]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(JOB_APPLICATIONS_STORAGE_KEY, JSON.stringify(jobApplications));
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [jobApplications]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncPageFromHash = () => setActivePage(getPageFromHash());
+
+    window.addEventListener('hashchange', syncPageFromHash);
+    return () => window.removeEventListener('hashchange', syncPageFromHash);
+  }, []);
+
   const handlePrevMonth = () => {
     setCurrentMonth((prev) => {
       if (prev.month === 0) {
@@ -409,76 +492,212 @@ export default function App() {
     setMonthlyGoalsMonth((prevMonth) => new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 1));
   };
 
-  return (
-    <div className="min-h-screen bg-surface">
-      <Sidebar />
-      <TopBar />
+  const handleNavigate = (page: AppPage) => {
+    setActivePage(page);
 
-      <main className="lg:ml-64 pt-24 pb-12 px-8 min-h-screen">
-        <div className="max-w-7xl mx-auto space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-7 space-y-6">
-              {/* Daily Blueprint */}
-              <section className="bg-white rounded-2xl p-8 shadow-sm relative pb-20">
-                <div className="flex items-center justify-between mb-8">
-                  <h1 className="text-3xl font-extrabold font-headline tracking-tight text-on-surface">
-                    {isSelectedDateToday ? 'Today' : formatDateDisplay(selectedDate)}
-                  </h1>
-                  <span className="text-xs font-bold text-on-surface-variant bg-surface-container px-3 py-1.5 rounded-full">
-                    {formatDateDisplay(selectedDate)}
-                  </span>
+    if (typeof window !== 'undefined' && window.location.hash !== `#${page}`) {
+      window.location.hash = page;
+    }
+  };
+
+  const handleAddJobApplication = (application: Omit<JobApplication, 'id'>) => {
+    setJobApplications((previousApplications) => [
+      {
+        id: Math.random().toString(36).slice(2, 11),
+        ...application,
+      },
+      ...previousApplications,
+    ]);
+  };
+
+  const handleUpdateJobApplication = (applicationId: string, updatedApplication: Omit<JobApplication, 'id'>) => {
+    setJobApplications((previousApplications) =>
+      previousApplications.map((application) =>
+        application.id === applicationId
+          ? { id: application.id, ...updatedApplication }
+          : application
+      )
+    );
+  };
+
+  const handleDeleteJobApplication = (applicationId: string) => {
+    setJobApplications((previousApplications) =>
+      previousApplications.filter((application) => application.id !== applicationId)
+    );
+  };
+
+  const renderCompactTrackerSections = (taskType: Task['type']) => {
+    const todayTasks = tasks.filter(
+      (task) => task.type === taskType && task.date === formatDateToString(today)
+    );
+    const relatedGoals = monthlyGoals.filter((goal) => goal.type === taskType);
+
+    return (
+      <section className="bg-white rounded-2xl p-4 shadow-sm">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <section className="rounded-2xl border border-outline-variant/60 p-3">
+            <div className="mb-2.5">
+              <h2 className="text-lg font-headline font-bold text-on-surface">Today</h2>
+            </div>
+            <div className="space-y-2">
+              {todayTasks.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-3.5 py-3.5 text-sm text-on-surface-variant">
+                  No tasks for today in this section.
                 </div>
-
-                <div className="space-y-4 custom-scrollbar overflow-y-auto max-h-[500px] pr-2">
-                  {getTasksForSelectedDate().map((task, index) => (
-                    <div
-                      key={task.id}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, index)}
-                      className={dragOverIndex === index ? 'opacity-50' : ''}
-                    >
-                      <TaskItem
-                        task={task}
-                        onToggle={handleToggleTask}
-                        onEdit={handleEditTask}
-                        onDelete={handleDeleteTask}
-                        onDragStart={handleDragStart}
-                        isDragging={draggedTaskId === task.id}
-                      />
+              ) : (
+                todayTasks.map((task) => (
+                  <div key={task.id} className={`min-h-10 rounded-xl px-3 py-2 ${taskConfig[task.type].background}`}>
+                    <div className="flex min-h-6 items-center justify-between gap-3">
+                      <h3 className="flex-1 text-sm font-headline font-bold text-on-surface">{task.title}</h3>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                        {task.status}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
 
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                  <motion.button
-                    onClick={handleOpenNewTaskModal}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center justify-center w-10 h-10 bg-primary/80 text-on-primary rounded-full shadow-md hover:shadow-lg transition-all"
-                  >
-                    <Plus size={20} />
-                  </motion.button>
+          <section className="rounded-2xl border border-outline-variant/60 p-3">
+            <div className="mb-2.5">
+              <h2 className="text-lg font-headline font-bold text-on-surface">Monthly Goals</h2>
+            </div>
+            <div className="space-y-2">
+              {relatedGoals.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-3.5 py-3.5 text-sm text-on-surface-variant">
+                  No goals saved yet.
                 </div>
-              </section>
+              ) : (
+                relatedGoals.slice(0, 5).map((goal) => (
+                  <div key={goal.id} className={`min-h-10 rounded-xl px-3 py-2 ${taskConfig[goal.type].background}`}>
+                    <div className="flex min-h-6 items-center">
+                      <h3 className="text-sm font-headline font-bold text-on-surface">{goal.title}</h3>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+      </section>
+    );
+  };
+
+  const renderTrackerPage = (page: Exclude<AppPage, 'journal'>) => {
+    if (page === 'job-search') {
+      return (
+        <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {renderCompactTrackerSections('job')}
+            <JobApplicationTracker
+              applications={jobApplications}
+              onAddApplication={handleAddJobApplication}
+              onUpdateApplication={handleUpdateJobApplication}
+              onDeleteApplication={handleDeleteJobApplication}
+            />
+          </div>
+        </main>
+      );
+    }
+
+    const config = pageConfig[page];
+    const taskType = config.taskType;
+
+    if (!taskType) return null;
+
+    return (
+      <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <section className="bg-white rounded-2xl p-8 shadow-sm">
+            <div className="flex items-start justify-between gap-6 mb-8">
+              <div>
+                <h1 className="text-3xl font-extrabold font-headline tracking-tight text-on-surface">
+                  {config.title}
+                </h1>
+                <p className="mt-2 text-sm text-on-surface-variant max-w-2xl">{config.description}</p>
+              </div>
             </div>
 
-            {/* Right Side: Calendar & Progress */}
-            <aside className="lg:col-span-5 space-y-5">
-              <Calendar currentMonth={currentMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
-              <MonthlyGoals
-                goals={monthlyGoalsForSelectedMonth}
-                currentMonth={monthlyGoalsMonth}
-                onPrevMonth={handlePrevGoalsMonth}
-                onNextMonth={handleNextGoalsMonth}
-                onAddGoal={handleAddMonthlyGoal}
-                onUpdateGoal={handleUpdateMonthlyGoal}
-                onDeleteGoal={handleDeleteMonthlyGoal}
-              />
-              <ProgressMatrix view={progressView} onViewChange={setProgressView} items={progressItems} />
-            </aside>
-          </div>
+            {renderCompactTrackerSections(taskType)}
+          </section>
         </div>
       </main>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-surface">
+      <Sidebar activePage={activePage} onNavigate={handleNavigate} />
+      <TopBar activePage={activePage} onNavigate={handleNavigate} />
+
+      {activePage === 'journal' ? (
+        <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
+          <div className="max-w-7xl mx-auto space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              <div className="lg:col-span-7 space-y-6">
+                <section className="bg-white rounded-2xl p-8 shadow-sm relative pb-20">
+                  <div className="flex items-center justify-between mb-8">
+                    <h1 className="text-3xl font-extrabold font-headline tracking-tight text-on-surface">
+                      {isSelectedDateToday ? 'Today' : formatDateDisplay(selectedDate)}
+                    </h1>
+                    <span className="text-xs font-bold text-on-surface-variant bg-surface-container px-3 py-1.5 rounded-full">
+                      {formatDateDisplay(selectedDate)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4 custom-scrollbar overflow-y-auto max-h-[500px] pr-2">
+                    {getTasksForSelectedDate().map((task, index) => (
+                      <div
+                        key={task.id}
+                        onDragOver={handleDragOver}
+                        onDrop={(event) => handleDrop(event, index)}
+                        className={dragOverIndex === index ? 'opacity-50' : ''}
+                      >
+                        <TaskItem
+                          task={task}
+                          onToggle={handleToggleTask}
+                          onEdit={handleEditTask}
+                          onDelete={handleDeleteTask}
+                          onDragStart={handleDragStart}
+                          isDragging={draggedTaskId === task.id}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                    <motion.button
+                      onClick={handleOpenNewTaskModal}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center justify-center w-10 h-10 bg-primary/80 text-on-primary rounded-full shadow-md hover:shadow-lg transition-all"
+                    >
+                      <Plus size={20} />
+                    </motion.button>
+                  </div>
+                </section>
+              </div>
+
+              <aside className="lg:col-span-5 space-y-5">
+                <Calendar currentMonth={currentMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
+                <MonthlyGoals
+                  goals={monthlyGoalsForSelectedMonth}
+                  currentMonth={monthlyGoalsMonth}
+                  onPrevMonth={handlePrevGoalsMonth}
+                  onNextMonth={handleNextGoalsMonth}
+                  onAddGoal={handleAddMonthlyGoal}
+                  onUpdateGoal={handleUpdateMonthlyGoal}
+                  onDeleteGoal={handleDeleteMonthlyGoal}
+                />
+                <ProgressMatrix view={progressView} onViewChange={setProgressView} items={progressItems} />
+              </aside>
+            </div>
+          </div>
+        </main>
+      ) : (
+        renderTrackerPage(activePage)
+      )}
 
       <NewTaskModal
         isOpen={isModalOpen}
