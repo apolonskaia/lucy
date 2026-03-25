@@ -1,6 +1,18 @@
 import { Bell, Settings } from 'lucide-react';
+import { AppPage } from '../types';
 
-export default function TopBar() {
+const navItems = [
+  { label: 'Job Search', page: 'job-search' as AppPage },
+  { label: 'Learning Hub', page: 'learning-hub' as AppPage },
+  { label: 'Wellness Tracker', page: 'wellness-tracker' as AppPage },
+];
+
+interface TopBarProps {
+  activePage: AppPage;
+  onNavigate: (page: AppPage) => void;
+}
+
+export default function TopBar({ activePage, onNavigate }: TopBarProps) {
   const faviconSrc = `${import.meta.env.BASE_URL}favicon.svg`;
 
   return (
@@ -11,8 +23,18 @@ export default function TopBar() {
           <span className="text-2xl font-bold tracking-tighter text-primary font-headline">Lucy</span>
         </div>
         <nav className="hidden md:flex gap-8">
-          <a href="#" className="text-on-surface-variant hover:text-primary transition-colors font-headline text-sm">Job Tracker</a>
-          <a href="#" className="text-on-surface-variant hover:text-primary transition-colors font-headline text-sm">Learning Hub</a>
+          {navItems.map((item) => (
+            <button
+              key={item.page}
+              type="button"
+              onClick={() => onNavigate(item.page)}
+              className={`h-10 transition-colors font-headline text-[15px] leading-none font-semibold tracking-[0.01em] ${
+                activePage === item.page ? 'text-primary' : 'text-on-surface-variant hover:text-primary'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
       </div>
 
