@@ -3,15 +3,14 @@
 Vibecoding a productivity+wlb web app for myself.
 
 
-Currently, it has functionality to create daily tasks, monthly goals, and calculate daily, weekly, and monthly progress. 
-Later, adding job search assistance (logging, tracking, maybe automatic alerts for new job postings, CV tracking, and suggestions to make changes to CV to match JD) 
+Currently, it has functionality to create daily tasks, monthly goals, and calculate daily, weekly, and monthly progress (Journal tab). 
 
-The Job Search page now includes:
-- a job application tracker/logger
+Also, the Job Search tab now includes:
+- a job application tracker table
 - CV upload and text extraction for PDF, DOCX, TXT, and Markdown
 - AI CV-to-job-description suggestions via a local Express API
 
-Stay tuned
+Stay tuned.
 
 
 
