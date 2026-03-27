@@ -1,17 +1,20 @@
 # Lucy
 
 Vibecoding a productivity+wlb web app for myself.
-Data saved locally currently, will move to a DB soon. 
 
-The Job Search page now includes:
-- a job application tracker/logger
+
+Currently, it has functionality to create daily tasks, monthly goals, and calculate daily, weekly, and monthly progress (Journal tab). 
+
+Also, the Job Search tab now includes:
+- a job application tracker table
 - CV upload and text extraction for PDF, DOCX, TXT, and Markdown
 - AI CV-to-job-description suggestions via a local Express API
 
-The Learning Hub page now includes:
+The Learning Hub tab now includes:
 - two tracked lists: Online Courses and Papers
 
 Stay tuned
+Stay tuned.
 
 
 
