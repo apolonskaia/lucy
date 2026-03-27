@@ -8,6 +8,9 @@ The Job Search page now includes:
 - CV upload and text extraction for PDF, DOCX, TXT, and Markdown
 - AI CV-to-job-description suggestions via a local Express API
 
+The Learning Hub page now includes:
+- two tracked lists: Online Courses and Papers
+
 Stay tuned
 
 
