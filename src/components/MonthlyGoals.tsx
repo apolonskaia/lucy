@@ -106,9 +106,9 @@ export default function MonthlyGoals({
           </button>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-1.5">
           {goals.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-4 py-5 text-center text-sm text-on-surface-variant">
+            <div className="flex h-8 items-center rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-3 text-sm text-on-surface-variant">
               No monthly goals yet for this month.
             </div>
           ) : (
@@ -119,28 +119,28 @@ export default function MonthlyGoals({
               return (
                 <div
                   key={goal.id}
-                  className={`group flex items-center gap-2.5 px-3 py-2.5 rounded-xl ${palette.background} ${palette.hover} transition-all duration-300 shadow-sm hover:shadow-md`}
+                  className={`group flex h-8 items-center gap-2 px-3 py-1.5 rounded-xl ${palette.background} ${palette.hover} transition-all duration-300 shadow-sm hover:shadow-md`}
                 >
                   <Icon size={15} className={palette.icon} />
 
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xs font-headline font-bold leading-snug text-on-surface">{goal.title}</h3>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-sm font-headline font-bold leading-none text-on-surface">{goal.title}</h3>
                   </div>
 
                   <button
                     onClick={() => handleOpenEditGoalModal(goal)}
-                    className="text-on-surface-variant/50 hover:text-on-surface opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/60"
+                    className="h-7 w-7 shrink-0 rounded text-on-surface-variant/50 opacity-0 transition-opacity hover:bg-white/60 hover:text-on-surface group-hover:opacity-100"
                     aria-label="Edit monthly goal"
                   >
-                    <Pencil size={16} />
+                    <Pencil size={15} className="mx-auto" />
                   </button>
 
                   <button
                     onClick={() => onDeleteGoal(goal.id)}
-                    className="text-on-surface-variant/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50"
+                    className="h-7 w-7 shrink-0 rounded text-on-surface-variant/50 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
                     aria-label="Delete monthly goal"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} className="mx-auto" />
                   </button>
                 </div>
               );

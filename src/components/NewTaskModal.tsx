@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { taskConfig } from '../taskConfig';
 import { Task } from '../types';
@@ -19,9 +19,16 @@ export default function NewTaskModal({
   initialTask,
   suggestions,
 }: NewTaskModalProps) {
+  const selectedGroupStyles = {
+    job: 'bg-[#f5b453] text-[#5b320c] shadow-sm',
+    learning: 'bg-[#a996d1] text-[#35274f] shadow-sm',
+    wellness: 'bg-[#9fbe63] text-[#294114] shadow-sm',
+  } as const;
+
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'job' | 'learning' | 'wellness'>('job');
   const suggestionListId = useId();
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
 
   const isEditing = Boolean(initialTask);
 
@@ -37,6 +44,15 @@ export default function NewTaskModal({
     setTitle(initialTask?.title ?? '');
     setType(initialTask?.type ?? 'job');
   }, [initialTask, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    window.requestAnimationFrame(() => {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    });
+  }, [isOpen]);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -83,7 +99,7 @@ export default function NewTaskModal({
                   onClick={() => setType(option.value)}
                   className={`py-2 px-3 rounded-lg font-headline font-bold text-sm transition-all ${
                     type === option.value
-                      ? taskConfig[option.value].badgeActive
+                      ? selectedGroupStyles[option.value]
                       : taskConfig[option.value].badgeInactive
                   } flex-1`}
                 >
@@ -98,6 +114,7 @@ export default function NewTaskModal({
               Task Title
             </label>
             <input
+              ref={titleInputRef}
               type="text"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
