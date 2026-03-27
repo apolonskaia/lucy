@@ -317,7 +317,7 @@ export default function JobApplicationTracker({
     <section className="bg-white rounded-2xl p-8 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-extrabold font-headline tracking-tight text-on-surface">Job Search</h1>
+          <h1 className="text-2xl font-extrabold font-headline tracking-tight text-on-surface">Job Search</h1>
           <p className="mt-2 text-sm text-on-surface-variant max-w-2xl">
             Track every role, company, application date, status update, and posting link in one place.
           </p>
@@ -334,7 +334,8 @@ export default function JobApplicationTracker({
       </div>
 
       <div className="rounded-2xl border border-outline-variant/60 overflow-hidden">
-        <div className="hidden lg:grid grid-cols-[1.2fr_1fr_0.72fr_0.95fr_1fr_1.15fr_44px_44px] gap-3 bg-surface-container-low px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+        <div className="hidden lg:grid grid-cols-[36px_1.2fr_1fr_0.72fr_0.95fr_1fr_1.15fr_40px_40px] gap-3 bg-surface-container-low px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+          <span className="text-center">#</span>
           <span>Job Title</span>
           <span>Company</span>
           <span>Type</span>
@@ -351,18 +352,23 @@ export default function JobApplicationTracker({
               No job applications logged yet.
             </div>
           ) : (
-            sortedApplications.map((application) => (
+            sortedApplications.map((application, index) => (
               <div
                 key={application.id}
-                className="grid gap-2.5 px-4 py-2.5 lg:grid-cols-[1.2fr_1fr_0.72fr_0.95fr_1fr_1.15fr_44px_44px] lg:items-center"
+                className="grid gap-2 px-4 py-1.5 lg:grid-cols-[36px_1.2fr_1fr_0.72fr_0.95fr_1fr_1.15fr_40px_40px] lg:items-center"
               >
+                <div className="flex items-center lg:justify-center">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant lg:hidden">#</p>
+                  <span className="text-sm font-headline font-semibold text-on-surface">{index + 1}</span>
+                </div>
+
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant lg:hidden">Job Title</p>
                   <input
                     type="text"
                     value={application.jobTitle}
                     onChange={(event) => handleInlineUpdate(application, { jobTitle: event.target.value })}
-                    className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-headline font-semibold text-on-surface transition-colors focus:border-outline-variant focus:bg-surface-container-low focus:outline-none"
+                    className="w-full rounded-lg border border-transparent bg-transparent px-2 py-0.5 text-sm font-headline font-semibold text-on-surface transition-colors focus:border-outline-variant focus:bg-surface-container-low focus:outline-none"
                   />
                 </div>
 
@@ -372,7 +378,7 @@ export default function JobApplicationTracker({
                     type="text"
                     value={application.company}
                     onChange={(event) => handleInlineUpdate(application, { company: event.target.value })}
-                    className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-on-surface transition-colors focus:border-outline-variant focus:bg-surface-container-low focus:outline-none"
+                    className="w-full rounded-lg border border-transparent bg-transparent px-2 py-0.5 text-sm text-on-surface transition-colors focus:border-outline-variant focus:bg-surface-container-low focus:outline-none"
                   />
                 </div>
 
@@ -381,7 +387,7 @@ export default function JobApplicationTracker({
                   <select
                     value={application.type}
                     onChange={(event) => handleInlineUpdate(application, { type: event.target.value as JobApplicationType })}
-                    className="w-full rounded-lg border border-transparent bg-surface-container px-2.5 py-1.5 text-xs font-semibold text-on-surface transition-colors focus:border-outline-variant focus:outline-none"
+                    className="w-full rounded-lg border border-transparent bg-surface-container px-2.5 py-1 text-xs font-semibold text-on-surface transition-colors focus:border-outline-variant focus:outline-none"
                   >
                     {typeOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -397,7 +403,7 @@ export default function JobApplicationTracker({
                     type="date"
                     value={application.applicationDate}
                     onChange={(event) => handleInlineUpdate(application, { applicationDate: event.target.value })}
-                    className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-on-surface transition-colors focus:border-outline-variant focus:bg-surface-container-low focus:outline-none"
+                    className="w-full rounded-lg border border-transparent bg-transparent px-2 py-0.5 text-sm text-on-surface transition-colors focus:border-outline-variant focus:bg-surface-container-low focus:outline-none"
                   />
                 </div>
 
@@ -406,7 +412,7 @@ export default function JobApplicationTracker({
                   <select
                     value={application.status}
                     onChange={(event) => handleInlineUpdate(application, { status: event.target.value as JobApplicationStatus })}
-                    className={`w-full rounded-lg border border-transparent px-2.5 py-1.5 text-xs font-semibold transition-colors focus:border-outline-variant focus:outline-none ${statusStyles[application.status]}`}
+                    className={`w-full rounded-lg border border-transparent px-2.5 py-1 text-xs font-semibold transition-colors focus:border-outline-variant focus:outline-none ${statusStyles[application.status]}`}
                   >
                     {statusOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -423,17 +429,17 @@ export default function JobApplicationTracker({
                     value={application.link}
                     onChange={(event) => handleInlineUpdate(application, { link: event.target.value })}
                     onBlur={(event) => handleInlineUpdate(application, { link: normalizeLink(event.target.value) })}
-                    className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-on-surface transition-colors focus:border-outline-variant focus:bg-surface-container-low focus:outline-none"
+                    className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-0.5 text-sm text-on-surface transition-colors focus:border-outline-variant focus:bg-surface-container-low focus:outline-none"
                     placeholder="https://..."
                   />
                   <a
                     href={normalizeLink(application.link)}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary"
                     aria-label={`Open ${application.jobTitle} posting`}
                   >
-                    <ExternalLink size={16} />
+                    <ExternalLink size={15} />
                   </a>
                 </div>
 
@@ -441,14 +447,14 @@ export default function JobApplicationTracker({
                   <button
                     type="button"
                     onClick={() => openAnalysisModal(application)}
-                    className={`inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
                       application.cvAnalysis
                         ? 'bg-violet-100 text-violet-700 hover:bg-violet-200'
                         : 'text-on-surface-variant hover:bg-surface-container hover:text-primary'
                     }`}
                     aria-label={`Analyze ${application.jobTitle} CV match`}
                   >
-                    <Sparkles size={16} />
+                    <Sparkles size={15} />
                   </button>
                 </div>
 
@@ -456,10 +462,10 @@ export default function JobApplicationTracker({
                   <button
                     type="button"
                     onClick={() => onDeleteApplication(application.id)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-red-50 hover:text-red-500"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-red-50 hover:text-red-500"
                     aria-label={`Delete ${application.jobTitle}`}
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>

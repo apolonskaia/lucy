@@ -153,7 +153,7 @@ export default function MonthlyGoals({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-headline font-bold text-on-surface">
+              <h3 className="text-xl font-headline font-bold text-on-surface">
                 {editingGoal ? 'Edit Monthly Goal' : 'New Monthly Goal'}
               </h3>
               <button

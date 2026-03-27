@@ -9,7 +9,8 @@ import ProgressMatrix from './components/ProgressMatrix';
 import NewTaskModal from './components/NewTaskModal';
 import MonthlyGoals from './components/MonthlyGoals';
 import JobApplicationTracker from './components/JobApplicationTracker';
-import { AppPage, JobApplication, MonthlyGoal, ProgressItem, Task } from './types';
+import LearningResourcesTracker from './components/LearningResourcesTracker';
+import { AppPage, JobApplication, LearningResource, MonthlyGoal, ProgressItem, Task } from './types';
 import { taskConfig } from './taskConfig';
 
 const mockTasks: Task[] = [
@@ -51,6 +52,7 @@ const mockTasks: Task[] = [
 const STORAGE_KEY = 'lucy-tasks-v1';
 const MONTHLY_GOALS_STORAGE_KEY = 'lucy-monthly-goals-v1';
 const JOB_APPLICATIONS_STORAGE_KEY = 'lucy-job-applications-v1';
+const LEARNING_RESOURCES_STORAGE_KEY = 'lucy-learning-resources-v1';
 const appPages: AppPage[] = ['journal', 'job-search', 'learning-hub', 'wellness-tracker'];
 
 const pageConfig: Record<AppPage, { title: string; description: string; taskType?: Task['type'] }> = {
@@ -189,6 +191,48 @@ const loadJobApplications = (): JobApplication[] => {
   }
 };
 
+const createMockLearningResources = (): LearningResource[] => [
+  {
+    id: 'learning-course-1',
+    title: 'DeepLearning.AI: Generative AI for Everyone',
+    link: 'https://www.deeplearning.ai/courses/generative-ai-for-everyone/',
+    kind: 'course',
+    status: 'in-progress',
+  },
+  {
+    id: 'learning-course-2',
+    title: 'Full Stack Deep Learning 2022',
+    link: 'https://fullstackdeeplearning.com/course/2022/',
+    kind: 'course',
+    status: 'want-to-do',
+  },
+  {
+    id: 'learning-paper-1',
+    title: 'Attention Is All You Need',
+    link: 'https://arxiv.org/abs/1706.03762',
+    kind: 'paper',
+    status: 'finished',
+  },
+  {
+    id: 'learning-paper-2',
+    title: 'The Illustrated AlphaFold',
+    link: 'https://jalammar.github.io/illustrated-alphafold/',
+    kind: 'paper',
+    status: 'want-to-do',
+  },
+];
+
+const loadLearningResources = (): LearningResource[] => {
+  try {
+    const raw = localStorage.getItem(LEARNING_RESOURCES_STORAGE_KEY);
+    if (!raw) return createMockLearningResources();
+    const parsed: LearningResource[] = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : createMockLearningResources();
+  } catch {
+    return createMockLearningResources();
+  }
+};
+
 export default function App() {
   const today = getToday();
   const [activePage, setActivePage] = useState<AppPage>(() => getPageFromHash());
@@ -198,6 +242,7 @@ export default function App() {
   const [monthlyGoalsMonth, setMonthlyGoalsMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
   const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>(() => loadMonthlyGoals());
   const [jobApplications, setJobApplications] = useState<JobApplication[]>(() => loadJobApplications());
+  const [learningResources, setLearningResources] = useState<LearningResource[]>(() => loadLearningResources());
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -458,6 +503,14 @@ export default function App() {
   }, [jobApplications]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(LEARNING_RESOURCES_STORAGE_KEY, JSON.stringify(learningResources));
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [learningResources]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const syncPageFromHash = () => setActivePage(getPageFromHash());
@@ -526,6 +579,30 @@ export default function App() {
     );
   };
 
+  const handleAddLearningResource = (resource: Omit<LearningResource, 'id'>) => {
+    setLearningResources((previousResources) => [
+      {
+        id: Math.random().toString(36).slice(2, 11),
+        ...resource,
+      },
+      ...previousResources,
+    ]);
+  };
+
+  const handleUpdateLearningResource = (resourceId: string, updatedResource: Omit<LearningResource, 'id'>) => {
+    setLearningResources((previousResources) =>
+      previousResources.map((resource) =>
+        resource.id === resourceId ? { id: resource.id, ...updatedResource } : resource
+      )
+    );
+  };
+
+  const handleDeleteLearningResource = (resourceId: string) => {
+    setLearningResources((previousResources) =>
+      previousResources.filter((resource) => resource.id !== resourceId)
+    );
+  };
+
   const renderCompactTrackerSections = (taskType: Task['type']) => {
     const todayTasks = tasks.filter(
       (task) => task.type === taskType && task.date === formatDateToString(today)
@@ -533,23 +610,23 @@ export default function App() {
     const relatedGoals = monthlyGoals.filter((goal) => goal.type === taskType);
 
     return (
-      <section className="bg-white rounded-2xl p-4 shadow-sm">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <section className="rounded-2xl border border-outline-variant/60 p-3">
-            <div className="mb-2.5">
-              <h2 className="text-lg font-headline font-bold text-on-surface">Today</h2>
+      <section className="bg-white rounded-2xl p-3 shadow-sm">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          <section className="rounded-2xl border border-outline-variant/60 p-2.5">
+            <div className="mb-2">
+              <h2 className="text-base font-headline font-bold text-on-surface">Today</h2>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {todayTasks.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-3.5 py-3.5 text-sm text-on-surface-variant">
+                <div className="h-8 rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-3 py-1.5 text-sm text-on-surface-variant flex items-center">
                   No tasks for today in this section.
                 </div>
               ) : (
                 todayTasks.map((task) => (
-                  <div key={task.id} className={`min-h-10 rounded-xl px-3 py-2 ${taskConfig[task.type].background}`}>
-                    <div className="flex min-h-6 items-center justify-between gap-3">
-                      <h3 className="flex-1 text-sm font-headline font-bold text-on-surface">{task.title}</h3>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                  <div key={task.id} className={`h-8 rounded-xl px-3 py-1.5 ${taskConfig[task.type].background}`}>
+                    <div className="flex h-5 items-center justify-between gap-2">
+                      <h3 className="flex-1 truncate text-sm font-headline font-bold text-on-surface leading-none">{task.title}</h3>
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant leading-none">
                         {task.status}
                       </span>
                     </div>
@@ -559,20 +636,20 @@ export default function App() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-outline-variant/60 p-3">
-            <div className="mb-2.5">
-              <h2 className="text-lg font-headline font-bold text-on-surface">Monthly Goals</h2>
+          <section className="rounded-2xl border border-outline-variant/60 p-2.5">
+            <div className="mb-2">
+              <h2 className="text-base font-headline font-bold text-on-surface">Monthly Goals</h2>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {relatedGoals.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-3.5 py-3.5 text-sm text-on-surface-variant">
+                <div className="h-8 rounded-xl border border-dashed border-outline-variant bg-surface-container-low px-3 py-1.5 text-sm text-on-surface-variant flex items-center">
                   No goals saved yet.
                 </div>
               ) : (
                 relatedGoals.slice(0, 5).map((goal) => (
-                  <div key={goal.id} className={`min-h-10 rounded-xl px-3 py-2 ${taskConfig[goal.type].background}`}>
-                    <div className="flex min-h-6 items-center">
-                      <h3 className="text-sm font-headline font-bold text-on-surface">{goal.title}</h3>
+                  <div key={goal.id} className={`h-8 rounded-xl px-3 py-1.5 ${taskConfig[goal.type].background}`}>
+                    <div className="flex h-5 items-center">
+                      <h3 className="truncate text-sm font-headline font-bold text-on-surface leading-none">{goal.title}</h3>
                     </div>
                   </div>
                 ))
@@ -588,7 +665,7 @@ export default function App() {
     if (page === 'job-search') {
       return (
         <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="max-w-7xl mx-auto space-y-4">
             {renderCompactTrackerSections('job')}
             <JobApplicationTracker
               applications={jobApplications}
@@ -601,29 +678,33 @@ export default function App() {
       );
     }
 
-    const config = pageConfig[page];
-    const taskType = config.taskType;
+    if (page === 'learning-hub') {
+      return (
+        <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
+          <div className="max-w-7xl mx-auto space-y-4">
+            {renderCompactTrackerSections('learning')}
+            <LearningResourcesTracker
+              resources={learningResources}
+              onAddResource={handleAddLearningResource}
+              onUpdateResource={handleUpdateLearningResource}
+              onDeleteResource={handleDeleteLearningResource}
+            />
+          </div>
+        </main>
+      );
+    }
 
-    if (!taskType) return null;
+    if (page === 'wellness-tracker') {
+      return (
+        <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
+          <div className="max-w-7xl mx-auto space-y-4">
+            {renderCompactTrackerSections('wellness')}
+          </div>
+        </main>
+      );
+    }
 
-    return (
-      <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
-        <div className="max-w-7xl mx-auto space-y-8">
-          <section className="bg-white rounded-2xl p-8 shadow-sm">
-            <div className="flex items-start justify-between gap-6 mb-8">
-              <div>
-                <h1 className="text-3xl font-extrabold font-headline tracking-tight text-on-surface">
-                  {config.title}
-                </h1>
-                <p className="mt-2 text-sm text-on-surface-variant max-w-2xl">{config.description}</p>
-              </div>
-            </div>
-
-            {renderCompactTrackerSections(taskType)}
-          </section>
-        </div>
-      </main>
-    );
+    return null;
   };
 
   return (
@@ -638,7 +719,7 @@ export default function App() {
               <div className="lg:col-span-7 space-y-6">
                 <section className="bg-white rounded-2xl p-8 shadow-sm relative pb-20">
                   <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-3xl font-extrabold font-headline tracking-tight text-on-surface">
+                    <h1 className="text-2xl font-extrabold font-headline tracking-tight text-on-surface">
                       {isSelectedDateToday ? 'Today' : formatDateDisplay(selectedDate)}
                     </h1>
                     <span className="text-xs font-bold text-on-surface-variant bg-surface-container px-3 py-1.5 rounded-full">

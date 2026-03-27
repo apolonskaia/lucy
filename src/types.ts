@@ -17,6 +17,18 @@ export interface ProgressItem {
 
 export type AppPage = 'journal' | 'job-search' | 'learning-hub' | 'wellness-tracker';
 
+export type LearningResourceKind = 'course' | 'paper';
+
+export type LearningResourceStatus = 'want-to-do' | 'in-progress' | 'finished' | 'dropped';
+
+export interface LearningResource {
+  id: string;
+  title: string;
+  link: string;
+  kind: LearningResourceKind;
+  status: LearningResourceStatus;
+}
+
 export type JobApplicationType = 'tech' | 'biotech';
 
 export type JobApplicationStatus =
