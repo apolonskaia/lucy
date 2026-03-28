@@ -1,5 +1,9 @@
 # Lucy
 
+Lucy will help you look for a job and keep your sanity here:  
+[Open Lucy](https://apolonskaia.github.io/lucy/#journal)
+
+
 Vibecoding a productivity+wlb web app for myself.
 
 
