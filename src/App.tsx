@@ -980,7 +980,7 @@ export default function App() {
   const renderTrackerPage = (page: Exclude<AppPage, 'journal'>) => {
     if (page === 'job-search') {
       return (
-        <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
+        <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
           <div className="max-w-7xl mx-auto space-y-4">
             {renderCompactTrackerSections('job')}
             <JobApplicationTracker
@@ -996,7 +996,7 @@ export default function App() {
 
     if (page === 'learning-hub') {
       return (
-        <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
+        <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
           <div className="max-w-7xl mx-auto space-y-4">
             {renderCompactTrackerSections('learning')}
             <LearningResourcesTracker
@@ -1012,7 +1012,7 @@ export default function App() {
 
     if (page === 'wellness-tracker') {
       return (
-        <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
+        <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
           <div className="max-w-7xl mx-auto space-y-4">
             {renderCompactTrackerSections('wellness')}
           </div>
@@ -1029,10 +1029,10 @@ export default function App() {
       <TopBar activePage={activePage} onNavigate={handleNavigate} />
 
       {activePage === 'journal' ? (
-        <main className="lg:ml-64 pt-20 pb-10 px-4 min-h-screen">
-          <div className="max-w-7xl mx-auto space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              <div className="lg:col-span-7 space-y-6">
+        <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
+          <div className="max-w-7xl mx-auto space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+              <div className="lg:col-span-7 space-y-4">
                 <section className="bg-white rounded-2xl p-8 shadow-sm relative pb-20">
                   <div className="flex items-center justify-between mb-8">
                     <h1 className="text-2xl font-extrabold font-headline tracking-tight text-on-surface">
@@ -1076,7 +1076,7 @@ export default function App() {
                 </section>
               </div>
 
-              <aside className="lg:col-span-5 space-y-5">
+              <aside className="lg:col-span-5 space-y-4">
                 <Calendar currentMonth={currentMonth} onPrevMonth={handlePrevMonth} onNextMonth={handleNextMonth} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
                 <MonthlyGoals
                   goals={monthlyGoalsForSelectedMonth}

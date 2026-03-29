@@ -16,7 +16,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activePage, onNavigate, onExportData }: SidebarProps) {
   return (
-    <aside className="h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-900 flex flex-col py-6 px-4 pt-[4.5rem] hidden lg:flex z-40">
+    <aside className="h-screen w-56 fixed left-0 top-0 bg-white dark:bg-slate-900 flex flex-col py-6 px-4 pt-[4.5rem] hidden lg:flex z-40">
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => (
           <button
