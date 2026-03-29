@@ -1,24 +1,18 @@
 # Lucy
 
-Lucy will help you look for a job and keep your sanity here:  
-[Open Lucy](https://apolonskaia.github.io/lucy/#journal)
+Lucy will help you look for a job and keep your sanity here: [Open Lucy](https://apolonskaia.github.io/lucy/#journal)
 
+Currently, Lucy has the following functionality:
+- Journal tab: create daily tasks, monthly goals, and calculate daily, weekly, and monthly progress
+- Job Search tab: job search stats, job application tracker table, CV upload, and embedded Gemini CV-to-job-description suggestions
+- Learning Hub tab: two tracked lists, Online Courses and Papers
+- Export all logged data to XLSX 
 
-Vibecoding a productivity+wlb web app for myself.
+*All the data is currently saved in your browser's local storage
+*AI CV suggestions only work for me as I am running the backend from my local terminal. Planning to use Google Cloud Run in near future
 
-
-Currently, it has functionality to create daily tasks, monthly goals, and calculate daily, weekly, and monthly progress (Journal tab). 
-
-Also, the Job Search tab now includes:
-- a job application tracker table
-- CV upload and text extraction for PDF, DOCX, TXT, and Markdown
-- AI CV-to-job-description suggestions via a local Express API
-
-The Learning Hub tab now includes:
-- two tracked lists: Online Courses and Papers
 
 Stay tuned
-Stay tuned.
 
 
 
@@ -26,7 +20,9 @@ Stay tuned.
 
 
 
-**Prerequisites:**  Node.js
+
+
+## To run the web app locally:
 
 
 1. Install dependencies:
@@ -41,5 +37,4 @@ Stay tuned.
    `npm run dev`
 
 Notes:
-- The frontend proxies `/api/*` requests to `http://localhost:8787` in development.
-- GitHub Pages can host the frontend, but the AI analysis backend must be deployed separately because Pages cannot run Express or server-side AI calls.
+- The frontend proxies `/api/*` requests to `http://localhost:8787` in development
