@@ -28,7 +28,7 @@ export const taskConfig = {
     iconComponent: Leaf,
     background: 'bg-lime-100',
     hover: 'hover:saturate-150 hover:brightness-95',
-    icon: 'text-lime-300',
+    icon: 'text-lime-600',
     border: 'border-lime-300',
     badgeInactive: 'bg-lime-50 text-lime-700 hover:bg-lime-100',
     badgeActive: 'bg-lime-300 text-white shadow-md',
