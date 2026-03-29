@@ -29,6 +29,16 @@ const statusStyles: Record<JobApplicationStatus, string> = {
   withdrawn: 'bg-stone-100 text-stone-700',
 };
 
+const monthFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  year: 'numeric',
+});
+
+const getDaysInMonth = (yearMonth: string) => {
+  const [year, month] = yearMonth.split('-').map(Number);
+  return new Date(year, month, 0).getDate();
+};
+
 interface JobApplicationTrackerProps {
   applications: JobApplication[];
   onAddApplication: (application: Omit<JobApplication, 'id'>) => void;
@@ -170,6 +180,53 @@ export default function JobApplicationTracker({
     () => [...applications].sort((first, second) => second.applicationDate.localeCompare(first.applicationDate)),
     [applications]
   );
+  const monthlyApplicationSummary = useMemo(() => {
+    const summaryByMonth = new Map<
+      string,
+      {
+        label: string;
+        total: number;
+        weeks: [number, number, number, number, number];
+        hasWeekFive: boolean;
+      }
+    >();
+
+    applications.forEach((application) => {
+      if (application.status === 'saved' || !application.applicationDate) {
+        return;
+      }
+
+      const appliedAt = new Date(`${application.applicationDate}T12:00:00`);
+
+      if (Number.isNaN(appliedAt.getTime())) {
+        return;
+      }
+
+      const monthKey = application.applicationDate.slice(0, 7);
+      const weekIndex = Math.min(4, Math.floor((appliedAt.getDate() - 1) / 7));
+      const existingMonth = summaryByMonth.get(monthKey);
+
+      if (existingMonth) {
+        existingMonth.total += 1;
+        existingMonth.weeks[weekIndex] += 1;
+        return;
+      }
+
+      const weeks: [number, number, number, number, number] = [0, 0, 0, 0, 0];
+      weeks[weekIndex] = 1;
+
+      summaryByMonth.set(monthKey, {
+        label: monthFormatter.format(appliedAt),
+        total: 1,
+        weeks,
+        hasWeekFive: getDaysInMonth(monthKey) > 28,
+      });
+    });
+
+    return Array.from(summaryByMonth.entries())
+      .sort(([firstMonth], [secondMonth]) => secondMonth.localeCompare(firstMonth))
+      .map(([month, summary]) => ({ month, ...summary }));
+  }, [applications]);
   const analysisTarget = sortedApplications.find((application) => application.id === analysisTargetId) ?? null;
 
   const closeModal = () => {
@@ -314,11 +371,11 @@ export default function JobApplicationTracker({
   };
 
   return (
-    <section className="bg-white rounded-2xl p-8 shadow-sm">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-8">
+    <section className="rounded-2xl border border-outline-variant/60 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold font-headline tracking-tight text-on-surface">Job Search</h1>
-          <p className="mt-2 text-sm text-on-surface-variant max-w-2xl">
+          <h1 className="text-xl font-headline font-bold text-on-surface">Job Search</h1>
+          <p className="mt-0.5 text-sm text-on-surface-variant max-w-2xl">
             Track every role, company, application date, status update, and posting link in one place.
           </p>
         </div>
@@ -326,11 +383,56 @@ export default function JobApplicationTracker({
         <button
           type="button"
           onClick={openNewApplicationModal}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-headline font-semibold text-on-primary shadow-sm transition-all hover:shadow-md"
+          className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-primary px-4 py-2 text-sm font-headline font-semibold text-on-primary shadow-sm transition-all hover:shadow-md"
         >
           <Plus size={16} />
           Add Application
         </button>
+      </div>
+
+      <div className="mb-4 max-w-[360px] rounded-2xl border border-outline-variant/60 overflow-hidden">
+        {monthlyApplicationSummary.length === 0 ? (
+          <div className="px-4 py-3 text-sm text-on-surface-variant text-center">
+            Add dated applications to see monthly and weekly counts here.
+          </div>
+        ) : (
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="min-w-[260px] w-full text-sm">
+              <thead>
+                <tr className="bg-amber-100 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                  <th scope="col" className="px-2 py-1.5 text-left">Month</th>
+                  <th scope="col" className="px-2 py-1.5 text-center">W1</th>
+                  <th scope="col" className="px-2 py-1.5 text-center">W2</th>
+                  <th scope="col" className="px-2 py-1.5 text-center">W3</th>
+                  <th scope="col" className="px-2 py-1.5 text-center">W4</th>
+                  <th scope="col" className="px-2 py-1.5 text-center">W5</th>
+                  <th scope="col" className="px-2 py-1.5 text-center">Total</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {monthlyApplicationSummary.map((summary, index) => (
+                  <tr key={summary.month} className={`border-t border-outline-variant/50 ${index % 2 === 0 ? 'bg-white' : 'bg-amber-50/50'}`}>
+                    <th scope="row" className="px-2 py-1.5 text-left text-sm font-headline font-semibold text-on-surface">
+                      {summary.label}
+                    </th>
+                    {summary.weeks.map((count, index) => (
+                      <td
+                        key={`${summary.month}-week-${index + 1}`}
+                        className="px-1.5 py-1.5 text-center text-xs font-medium text-on-surface"
+                      >
+                        {index === 4 && !summary.hasWeekFive ? 'NA' : count}
+                      </td>
+                    ))}
+                    <td className="px-1.5 py-1.5 text-center text-xs font-headline font-extrabold text-on-surface">
+                      {summary.total}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-outline-variant/60 overflow-hidden">
