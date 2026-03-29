@@ -1,4 +1,4 @@
-import { NotebookPen, Briefcase, GraduationCap, HeartPulse, HelpCircle, LogOut } from 'lucide-react';
+import { Briefcase, Download, GraduationCap, HeartPulse, NotebookPen } from 'lucide-react';
 import { AppPage } from '../types';
 
 const navItems = [
@@ -11,11 +11,12 @@ const navItems = [
 interface SidebarProps {
   activePage: AppPage;
   onNavigate: (page: AppPage) => void;
+  onExportData: () => void;
 }
 
-export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
+export default function Sidebar({ activePage, onNavigate, onExportData }: SidebarProps) {
   return (
-    <aside className="h-screen w-64 fixed left-0 top-0 bg-white dark:bg-slate-900 flex flex-col py-6 px-4 pt-[4.5rem] hidden lg:flex z-40">
+    <aside className="h-screen w-56 fixed left-0 top-0 bg-white dark:bg-slate-900 flex flex-col py-6 px-4 pt-[4.5rem] hidden lg:flex z-40">
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => (
           <button
@@ -34,17 +35,15 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="mt-auto px-4 space-y-4">
-        <div className="pt-4 border-t border-outline-variant space-y-2">
-          <a href="#" className="flex items-center gap-3 py-2 text-on-surface-variant hover:text-primary text-sm transition-colors">
-            <HelpCircle size={16} />
-            Support
-          </a>
-          <a href="#" className="flex items-center gap-3 py-2 text-on-surface-variant hover:text-primary text-sm transition-colors">
-            <LogOut size={16} />
-            Sign Out
-          </a>
-        </div>
+      <div className="mt-auto px-4">
+        <button
+          type="button"
+          onClick={onExportData}
+          className="flex items-center gap-3 py-2 text-on-surface-variant hover:text-primary text-sm transition-colors"
+        >
+          <Download size={16} />
+          Export Spreadsheet
+        </button>
       </div>
     </aside>
   );

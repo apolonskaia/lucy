@@ -283,7 +283,7 @@ export default function LearningResourcesTracker({
   };
 
   return (
-    <section className="space-y-3.5">
+    <section className="space-y-4">
       {renderSection('course')}
       {renderSection('paper')}
     </section>
