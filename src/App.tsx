@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 import { useEffect, useState, type DragEvent } from 'react';
 import { motion } from 'motion/react';
+import * as XLSX from 'xlsx';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import TaskItem from './components/TaskItem';
@@ -12,6 +13,8 @@ import JobApplicationTracker from './components/JobApplicationTracker';
 import LearningResourcesTracker from './components/LearningResourcesTracker';
 import { AppPage, JobApplication, LearningResource, MonthlyGoal, ProgressItem, Task } from './types';
 import { taskConfig } from './taskConfig';
+
+type SheetValue = string | number;
 
 const mockTasks: Task[] = [
   {
@@ -232,6 +235,112 @@ const loadLearningResources = (): LearningResource[] => {
     return createMockLearningResources();
   }
 };
+
+const buildMonthlyApplicationSummary = (applications: JobApplication[]) => {
+  const monthFormatter = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    year: 'numeric',
+  });
+  const summaryByMonth = new Map<
+    string,
+    {
+      label: string;
+      total: number;
+      weeks: [number, number, number, number, number];
+      hasWeekFive: boolean;
+    }
+  >();
+
+  applications.forEach((application) => {
+    if (application.status === 'saved' || !application.applicationDate) {
+      return;
+    }
+
+    const appliedAt = new Date(`${application.applicationDate}T12:00:00`);
+
+    if (Number.isNaN(appliedAt.getTime())) {
+      return;
+    }
+
+    const monthKey = application.applicationDate.slice(0, 7);
+    const weekIndex = Math.min(4, Math.floor((appliedAt.getDate() - 1) / 7));
+    const existingMonth = summaryByMonth.get(monthKey);
+
+    if (existingMonth) {
+      existingMonth.total += 1;
+      existingMonth.weeks[weekIndex] += 1;
+      return;
+    }
+
+    const [year, month] = monthKey.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const weeks: [number, number, number, number, number] = [0, 0, 0, 0, 0];
+    weeks[weekIndex] = 1;
+
+    summaryByMonth.set(monthKey, {
+      label: monthFormatter.format(appliedAt),
+      total: 1,
+      weeks,
+      hasWeekFive: daysInMonth > 28,
+    });
+  });
+
+  return Array.from(summaryByMonth.entries())
+    .sort(([firstMonth], [secondMonth]) => secondMonth.localeCompare(firstMonth))
+    .map(([month, summary]) => ({ month, ...summary }));
+};
+
+const addSheetSection = (
+  rows: SheetValue[][],
+  title: string,
+  headers: SheetValue[],
+  dataRows: SheetValue[][],
+  emptyMessage: string
+) => {
+  if (rows.length > 0) {
+    rows.push([]);
+  }
+
+  rows.push([title]);
+  rows.push(headers);
+
+  if (dataRows.length === 0) {
+    rows.push([emptyMessage]);
+    return;
+  }
+
+  rows.push(...dataRows);
+};
+
+const setSheetColumns = (sheet: XLSX.WorkSheet, widths: number[]) => {
+  sheet['!cols'] = widths.map((wch) => ({ wch }));
+};
+
+const makeWorksheet = (rows: SheetValue[][], widths: number[]) => {
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  setSheetColumns(worksheet, widths);
+  return worksheet;
+};
+
+const startOfWeek = (date: Date) => {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  const dayOfWeek = result.getDay();
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  result.setDate(result.getDate() - daysFromMonday);
+  return result;
+};
+
+const endOfWeek = (date: Date) => {
+  const result = startOfWeek(date);
+  result.setDate(result.getDate() + 6);
+  result.setHours(23, 59, 59, 999);
+  return result;
+};
+
+const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+
+const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
 
 export default function App() {
   const today = getToday();
@@ -603,6 +712,213 @@ export default function App() {
     );
   };
 
+  const handleExportData = () => {
+    const exportedAt = new Date().toISOString();
+    const workbook = XLSX.utils.book_new();
+    const todayKey = formatDateToString(today);
+    const sortedApplications = [...jobApplications].sort((first, second) => second.applicationDate.localeCompare(first.applicationDate));
+    const monthlyApplicationSummary = buildMonthlyApplicationSummary(jobApplications);
+    const sortedTasks = [...tasks].sort((first, second) => first.date.localeCompare(second.date) || first.title.localeCompare(second.title));
+    const sortedMonthlyGoals = [...monthlyGoals].sort((first, second) => first.month.localeCompare(second.month) || first.title.localeCompare(second.title));
+
+    const timelineStartCandidates = [
+      ...sortedTasks.map((task) => new Date(`${task.date}T00:00:00`)),
+      ...sortedMonthlyGoals.map((goal) => new Date(`${goal.month}-01T00:00:00`)),
+    ].filter((date) => !Number.isNaN(date.getTime()));
+
+    const timelineStart = timelineStartCandidates.length > 0
+      ? new Date(Math.min(...timelineStartCandidates.map((date) => date.getTime())))
+      : new Date(today);
+
+    const computeProgressForRange = (rangeStart: Date, rangeEnd: Date) =>
+      progressGroups.map((group) => {
+        const matchingTasks = tasks.filter((task) => {
+          const taskDate = new Date(`${task.date}T00:00:00`);
+          return task.type === group.type && taskDate >= rangeStart && taskDate <= rangeEnd;
+        });
+        const completedCount = matchingTasks.filter((task) => task.status === 'completed').length;
+        const percentComplete = matchingTasks.length === 0 ? 0 : Math.round((completedCount / matchingTasks.length) * 100);
+
+        return {
+          label: group.label,
+          value: percentComplete,
+        };
+      });
+
+    const dailyJournalRows = sortedTasks.map((task, index) => [
+      index + 1,
+      task.date,
+      task.time ?? '',
+      task.title,
+      task.category,
+      task.priority ?? '',
+      task.status,
+      task.type,
+    ]);
+
+    const weeklyProgressRows: SheetValue[][] = [];
+    for (let cursor = startOfWeek(timelineStart); cursor <= today; cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 7)) {
+      const weekStart = new Date(cursor);
+      const weekEnd = endOfWeek(cursor);
+      const progressByGroup = computeProgressForRange(weekStart, weekEnd);
+
+      weeklyProgressRows.push([
+        formatDateToString(weekStart),
+        formatDateToString(weekEnd),
+        progressByGroup[0].value,
+        progressByGroup[1].value,
+        progressByGroup[2].value,
+      ]);
+    }
+
+    const monthlyProgressRows: SheetValue[][] = [];
+    for (
+      let cursor = startOfMonth(timelineStart);
+      cursor <= today;
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+    ) {
+      const monthStart = new Date(cursor);
+      const monthEnd = endOfMonth(cursor);
+      const progressByGroup = computeProgressForRange(monthStart, monthEnd);
+
+      monthlyProgressRows.push([
+        formatMonthKey(monthStart),
+        progressByGroup[0].value,
+        progressByGroup[1].value,
+        progressByGroup[2].value,
+      ]);
+    }
+
+    const journalRows: SheetValue[][] = [
+      ['Journal'],
+      ['Exported At', exportedAt],
+      ['Selected Date', formatDateToString(selectedDate)],
+      ['First Saved Journal Date', formatDateToString(timelineStart)],
+    ];
+    addSheetSection(
+      journalRows,
+      isSelectedDateToday ? 'Today' : `Tasks for ${formatDateToString(selectedDate)}`,
+      ['#', 'Date', 'Time', 'Title', 'Category', 'Priority', 'Status', 'Type'],
+      getTasksForSelectedDate().map((task, index) => [
+        index + 1,
+        task.date,
+        task.time ?? '',
+        task.title,
+        task.category,
+        task.priority ?? '',
+        task.status,
+        task.type,
+      ]),
+      'No tasks for this date.'
+    );
+    addSheetSection(
+      journalRows,
+      'Date Goals History',
+      ['#', 'Date', 'Time', 'Title', 'Category', 'Priority', 'Status', 'Type'],
+      dailyJournalRows,
+      'No date goals saved yet.'
+    );
+    addSheetSection(
+      journalRows,
+      `Monthly Goals (${currentMonthlyGoalsKey})`,
+      ['#', 'Month', 'Title', 'Type'],
+      monthlyGoalsForSelectedMonth.map((goal, index) => [index + 1, goal.month, goal.title, goal.type]),
+      'No monthly goals for this month.'
+    );
+    addSheetSection(
+      journalRows,
+      'Monthly Goals History',
+      ['#', 'Month', 'Title', 'Type'],
+      sortedMonthlyGoals.map((goal, index) => [index + 1, goal.month, goal.title, goal.type]),
+      'No monthly goals saved yet.'
+    );
+    addSheetSection(
+      journalRows,
+      `Progress (${progressView})`,
+      ['Area', 'Completion %'],
+      progressItems.map((item) => [item.label, item.value]),
+      'No progress data available.'
+    );
+    addSheetSection(
+      journalRows,
+      'Weekly Progress History',
+      ['Week Start', 'Week End', 'Work %', 'Learn %', 'Wellness %'],
+      weeklyProgressRows,
+      'No weekly progress history available.'
+    );
+    addSheetSection(
+      journalRows,
+      'Monthly Progress History',
+      ['Month', 'Work %', 'Learn %', 'Wellness %'],
+      monthlyProgressRows,
+      'No monthly progress history available.'
+    );
+    XLSX.utils.book_append_sheet(workbook, makeWorksheet(journalRows, [18, 18, 14, 32, 18, 14, 14, 14]), 'Journal');
+
+    const jobRows: SheetValue[][] = [];
+    addSheetSection(
+      jobRows,
+      'Application Summary',
+      ['Month', 'W1', 'W2', 'W3', 'W4', 'W5', 'Total'],
+      monthlyApplicationSummary.map((summary) => [
+        summary.label,
+        summary.weeks[0],
+        summary.weeks[1],
+        summary.weeks[2],
+        summary.weeks[3],
+        summary.hasWeekFive ? summary.weeks[4] : 'NA',
+        summary.total,
+      ]),
+      'No dated applications available.'
+    );
+    addSheetSection(
+      jobRows,
+      'Applications',
+      ['#', 'Job Title', 'Company', 'Type', 'Application Date', 'Status', 'Link', 'CV File', 'Last Analyzed'],
+      sortedApplications.map((application, index) => [
+        index + 1,
+        application.jobTitle,
+        application.company,
+        application.type,
+        application.applicationDate,
+        application.status,
+        application.link,
+        application.cvFileName ?? '',
+        application.cvAnalyzedAt ?? '',
+      ]),
+      'No job applications logged yet.'
+    );
+    XLSX.utils.book_append_sheet(workbook, makeWorksheet(jobRows, [24, 18, 16, 16, 18, 18, 18, 18, 24]), 'Job Search');
+
+    const learningRows: SheetValue[][] = [];
+    addSheetSection(
+      learningRows,
+      'Online Courses',
+      ['#', 'Title', 'Status', 'Link'],
+      learningResources
+        .filter((resource) => resource.kind === 'course')
+        .map((resource, index) => [index + 1, resource.title, resource.status, resource.link]),
+      'No courses saved yet.'
+    );
+    addSheetSection(
+      learningRows,
+      'Papers',
+      ['#', 'Title', 'Status', 'Link'],
+      learningResources
+        .filter((resource) => resource.kind === 'paper')
+        .map((resource, index) => [index + 1, resource.title, resource.status, resource.link]),
+      'No papers saved yet.'
+    );
+    XLSX.utils.book_append_sheet(workbook, makeWorksheet(learningRows, [24, 42, 18, 52]), 'Learning Hub');
+
+    const wellnessRows: SheetValue[][] = [];
+    XLSX.utils.book_append_sheet(workbook, makeWorksheet(wellnessRows, [24, 42, 18]), 'Wellness Tracker');
+
+    XLSX.writeFile(workbook, `lucy-export-${exportedAt.slice(0, 10)}.xlsx`, {
+      compression: true,
+    });
+  };
+
   const renderCompactTrackerSections = (taskType: Task['type']) => {
     const todayTasks = tasks.filter(
       (task) => task.type === taskType && task.date === formatDateToString(today)
@@ -709,7 +1025,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <Sidebar activePage={activePage} onNavigate={handleNavigate} />
+      <Sidebar activePage={activePage} onNavigate={handleNavigate} onExportData={handleExportData} />
       <TopBar activePage={activePage} onNavigate={handleNavigate} />
 
       {activePage === 'journal' ? (
