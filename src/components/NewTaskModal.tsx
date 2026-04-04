@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { taskConfig } from '../taskConfig';
 import { Task } from '../types';
@@ -8,6 +8,7 @@ interface NewTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmitTask: (task: { title: string; type: 'job' | 'learning' | 'wellness' }) => void;
+  onDeleteSuggestion: (taskType: 'job' | 'learning' | 'wellness', title: string) => void;
   initialTask?: Task | null;
   suggestions: Record<'job' | 'learning' | 'wellness', string[]>;
 }
@@ -16,6 +17,7 @@ export default function NewTaskModal({
   isOpen,
   onClose,
   onSubmitTask,
+  onDeleteSuggestion,
   initialTask,
   suggestions,
 }: NewTaskModalProps) {
@@ -27,7 +29,7 @@ export default function NewTaskModal({
 
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'job' | 'learning' | 'wellness'>('job');
-  const suggestionListId = useId();
+  const [isSuggestionMenuOpen, setIsSuggestionMenuOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
 
   const isEditing = Boolean(initialTask);
@@ -38,11 +40,22 @@ export default function NewTaskModal({
     { value: 'wellness' as const, label: 'Wellness' },
   ];
 
+  const filteredSuggestions = useMemo(() => {
+    const normalizedTitle = title.trim().toLowerCase();
+
+    if (!normalizedTitle) {
+      return suggestions[type];
+    }
+
+    return suggestions[type].filter((suggestion) => suggestion.toLowerCase().includes(normalizedTitle));
+  }, [suggestions, title, type]);
+
   useEffect(() => {
     if (!isOpen) return;
 
     setTitle(initialTask?.title ?? '');
     setType(initialTask?.type ?? 'job');
+    setIsSuggestionMenuOpen(false);
   }, [initialTask, isOpen]);
 
   useEffect(() => {
@@ -113,23 +126,57 @@ export default function NewTaskModal({
             <label className="block text-sm font-headline font-bold text-on-surface mb-2">
               Task Title
             </label>
-            <input
-              ref={titleInputRef}
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              list={suggestionListId}
-              placeholder={suggestions[type].length > 0 ? 'Choose or type a task...' : 'Enter task description...'}
-              className="w-full px-4 py-2 rounded-lg border border-outline-variant bg-surface-container-low focus:bg-white focus:border-primary focus:outline-none transition-all"
-            />
-            <datalist id={suggestionListId}>
-              {suggestions[type].map((suggestion) => (
-                <option key={suggestion} value={suggestion} />
-              ))}
-            </datalist>
+            <div className="relative">
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={title}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  setIsSuggestionMenuOpen(true);
+                }}
+                onFocus={() => setIsSuggestionMenuOpen(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setIsSuggestionMenuOpen(false), 100);
+                }}
+                placeholder={suggestions[type].length > 0 ? 'Choose or type a task...' : 'Enter task description...'}
+                className="w-full px-4 py-2 rounded-lg border border-outline-variant bg-surface-container-low focus:bg-white focus:border-primary focus:outline-none transition-all"
+              />
+
+              {isSuggestionMenuOpen && filteredSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-10 overflow-hidden rounded-xl border border-outline-variant bg-white shadow-lg">
+                  <div className="max-h-48 overflow-y-auto py-1 custom-scrollbar">
+                    {filteredSuggestions.map((suggestion) => (
+                      <div key={suggestion} className="flex items-center gap-2 px-2 py-1">
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setTitle(suggestion);
+                            setIsSuggestionMenuOpen(false);
+                          }}
+                          className="flex-1 rounded-lg px-2 py-1.5 text-left text-sm text-on-surface transition-colors hover:bg-surface-container-low hover:text-primary"
+                        >
+                          {suggestion}
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => onDeleteSuggestion(type, suggestion)}
+                          className="rounded-full p-1 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-red-500"
+                          aria-label={`Remove suggested task ${suggestion}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             {suggestions[type].length > 0 && (
               <p className="mt-2 text-xs text-on-surface-variant">
-                Suggestions show the most frequently repeated {taskConfig[type].label.toLowerCase()} tasks.
+                Suggestions show the most frequently repeated {taskConfig[type].label.toLowerCase()} tasks. Use the dropdown to select or remove them.
               </p>
             )}
           </div>

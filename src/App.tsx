@@ -56,6 +56,7 @@ const STORAGE_KEY = 'lucy-tasks-v1';
 const MONTHLY_GOALS_STORAGE_KEY = 'lucy-monthly-goals-v1';
 const JOB_APPLICATIONS_STORAGE_KEY = 'lucy-job-applications-v1';
 const LEARNING_RESOURCES_STORAGE_KEY = 'lucy-learning-resources-v1';
+const HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY = 'lucy-hidden-task-suggestions-v1';
 const appPages: AppPage[] = ['journal', 'job-search', 'learning-hub', 'wellness-tracker'];
 
 const pageConfig: Record<AppPage, { title: string; description: string; taskType?: Task['type'] }> = {
@@ -236,6 +237,34 @@ const loadLearningResources = (): LearningResource[] => {
   }
 };
 
+const loadHiddenTaskSuggestions = (): Record<'job' | 'learning' | 'wellness', string[]> => {
+  try {
+    const raw = localStorage.getItem(HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY);
+
+    if (!raw) {
+      return {
+        job: [],
+        learning: [],
+        wellness: [],
+      };
+    }
+
+    const parsed = JSON.parse(raw) as Partial<Record<'job' | 'learning' | 'wellness', unknown>>;
+
+    return {
+      job: Array.isArray(parsed.job) ? parsed.job.filter((item): item is string => typeof item === 'string') : [],
+      learning: Array.isArray(parsed.learning) ? parsed.learning.filter((item): item is string => typeof item === 'string') : [],
+      wellness: Array.isArray(parsed.wellness) ? parsed.wellness.filter((item): item is string => typeof item === 'string') : [],
+    };
+  } catch {
+    return {
+      job: [],
+      learning: [],
+      wellness: [],
+    };
+  }
+};
+
 const buildMonthlyApplicationSummary = (applications: JobApplication[]) => {
   const monthFormatter = new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -352,6 +381,9 @@ export default function App() {
   const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>(() => loadMonthlyGoals());
   const [jobApplications, setJobApplications] = useState<JobApplication[]>(() => loadJobApplications());
   const [learningResources, setLearningResources] = useState<LearningResource[]>(() => loadLearningResources());
+  const [hiddenTaskSuggestions, setHiddenTaskSuggestions] = useState<Record<'job' | 'learning' | 'wellness', string[]>>(
+    () => loadHiddenTaskSuggestions()
+  );
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -385,6 +417,7 @@ export default function App() {
       accumulator[taskType] = Object.entries(titleCounts)
         .map(([title, count]) => [title, count] as [string, number])
         .filter(([, count]) => count > 1)
+        .filter(([title]) => !hiddenTaskSuggestions[taskType].includes(title))
         .sort((firstEntry, secondEntry) => secondEntry[1] - firstEntry[1] || firstEntry[0].localeCompare(secondEntry[0]))
         .map(([title]) => title);
 
@@ -396,6 +429,7 @@ export default function App() {
       wellness: [],
     }
   );
+  
 
   const getWeekRange = (date: Date) => {
     const start = new Date(date);
@@ -620,6 +654,14 @@ export default function App() {
   }, [learningResources]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY, JSON.stringify(hiddenTaskSuggestions));
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [hiddenTaskSuggestions]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const syncPageFromHash = () => setActivePage(getPageFromHash());
@@ -710,6 +752,15 @@ export default function App() {
     setLearningResources((previousResources) =>
       previousResources.filter((resource) => resource.id !== resourceId)
     );
+  };
+
+  const handleDeleteTaskSuggestion = (taskType: 'job' | 'learning' | 'wellness', title: string) => {
+    setHiddenTaskSuggestions((previousSuggestions) => ({
+      ...previousSuggestions,
+      [taskType]: previousSuggestions[taskType].includes(title)
+        ? previousSuggestions[taskType]
+        : [...previousSuggestions[taskType], title],
+    }));
   };
 
   const handleExportData = () => {
@@ -920,10 +971,13 @@ export default function App() {
   };
 
   const renderCompactTrackerSections = (taskType: Task['type']) => {
+    const currentTrackerMonthKey = formatMonthKey(today);
     const todayTasks = tasks.filter(
       (task) => task.type === taskType && task.date === formatDateToString(today)
     );
-    const relatedGoals = monthlyGoals.filter((goal) => goal.type === taskType);
+    const relatedGoals = monthlyGoals.filter(
+      (goal) => goal.type === taskType && goal.month === currentTrackerMonthKey
+    );
 
     return (
       <section className="bg-white rounded-2xl p-3 shadow-sm">
@@ -1102,6 +1156,7 @@ export default function App() {
         onSubmitTask={handleSubmitTask}
         initialTask={editingTask}
         suggestions={taskTitleSuggestions}
+        onDeleteSuggestion={handleDeleteTaskSuggestion}
       />
     </div>
   );
