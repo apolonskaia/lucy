@@ -43,8 +43,10 @@ export default function TopBar({ activePage, onNavigate, citation, onCitationCha
 
       <div className="flex items-center gap-4 min-w-0">
         <div
-          className={`hidden lg:flex h-8 items-center rounded-xl border px-3 transition-colors ${
-            citation.trim() ? 'border-transparent bg-[#fcfbe1]' : 'border-outline-variant bg-white/80'
+          className={`hidden lg:flex h-8 items-center rounded-xl border px-3 transition-colors group ${
+            citation.trim()
+              ? 'border-outline-variant bg-white/80 hover:border-transparent hover:bg-[#fcfbe1] focus-within:border-transparent focus-within:bg-[#fcfbe1]'
+              : 'border-outline-variant bg-white/80'
           }`}
           style={{ width: citationWidth, maxWidth: '42rem' }}
         >
@@ -53,8 +55,10 @@ export default function TopBar({ activePage, onNavigate, citation, onCitationCha
             value={citation}
             onChange={(event) => onCitationChange(event.target.value)}
             placeholder="Add a citation to keep in view..."
-            className={`min-w-0 flex-1 bg-transparent text-sm text-on-surface-variant placeholder:text-slate-400 focus:outline-none ${
-              citation.trim() ? 'text-left font-medium' : 'text-left font-medium'
+            className={`min-w-0 flex-1 bg-transparent text-sm placeholder:text-slate-400 focus:outline-none ${
+              citation.trim()
+                ? 'text-left font-medium text-white/80 caret-transparent group-hover:text-on-surface-variant group-hover:caret-on-surface-variant focus:text-on-surface-variant focus:caret-on-surface-variant'
+                : 'text-left font-medium text-on-surface-variant caret-on-surface-variant'
             }`}
           />
         </div>
