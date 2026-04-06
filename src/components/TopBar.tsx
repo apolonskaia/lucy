@@ -10,14 +10,17 @@ const navItems = [
 interface TopBarProps {
   activePage: AppPage;
   onNavigate: (page: AppPage) => void;
+  citation: string;
+  onCitationChange: (value: string) => void;
 }
 
-export default function TopBar({ activePage, onNavigate }: TopBarProps) {
+export default function TopBar({ activePage, onNavigate, citation, onCitationChange }: TopBarProps) {
   const faviconSrc = `${import.meta.env.BASE_URL}favicon.svg`;
+  const citationWidth = `${Math.max(Math.min(citation.trim().length + 2, 32), 24)}ch`;
 
   return (
     <header className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl flex justify-between items-center px-8 h-16 shadow-sm">
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-8 min-w-0">
         <div className="flex items-center gap-3">
           <img src={faviconSrc} alt="Lucy favicon" className="h-7 w-7 shrink-0" />
           <span className="text-2xl font-bold tracking-tighter text-primary font-headline">Lucy</span>
@@ -38,7 +41,23 @@ export default function TopBar({ activePage, onNavigate }: TopBarProps) {
         </nav>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 min-w-0">
+        <div
+          className={`hidden lg:flex h-8 items-center rounded-xl border px-3 transition-colors ${
+            citation.trim() ? 'border-transparent bg-[#fcfbe1]' : 'border-outline-variant bg-white/80'
+          }`}
+          style={{ width: citationWidth, maxWidth: '42rem' }}
+        >
+          <input
+            type="text"
+            value={citation}
+            onChange={(event) => onCitationChange(event.target.value)}
+            placeholder="Add a citation to keep in view..."
+            className={`min-w-0 flex-1 bg-transparent text-sm text-on-surface-variant placeholder:text-slate-400 focus:outline-none ${
+              citation.trim() ? 'text-left font-medium' : 'text-left font-medium'
+            }`}
+          />
+        </div>
         <button className="p-2 rounded-full hover:bg-surface-container transition-colors">
           <Bell size={20} className="text-primary" />
         </button>

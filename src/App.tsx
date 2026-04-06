@@ -57,6 +57,7 @@ const MONTHLY_GOALS_STORAGE_KEY = 'lucy-monthly-goals-v1';
 const JOB_APPLICATIONS_STORAGE_KEY = 'lucy-job-applications-v1';
 const LEARNING_RESOURCES_STORAGE_KEY = 'lucy-learning-resources-v1';
 const HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY = 'lucy-hidden-task-suggestions-v1';
+const CITATION_STORAGE_KEY = 'lucy-citation-v1';
 const appPages: AppPage[] = ['journal', 'job-search', 'learning-hub', 'wellness-tracker'];
 
 const pageConfig: Record<AppPage, { title: string; description: string; taskType?: Task['type'] }> = {
@@ -265,6 +266,15 @@ const loadHiddenTaskSuggestions = (): Record<'job' | 'learning' | 'wellness', st
   }
 };
 
+const loadCitation = (): string => {
+  try {
+    const raw = localStorage.getItem(CITATION_STORAGE_KEY);
+    return typeof raw === 'string' ? raw : '';
+  } catch {
+    return '';
+  }
+};
+
 const buildMonthlyApplicationSummary = (applications: JobApplication[]) => {
   const monthFormatter = new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -384,6 +394,7 @@ export default function App() {
   const [hiddenTaskSuggestions, setHiddenTaskSuggestions] = useState<Record<'job' | 'learning' | 'wellness', string[]>>(
     () => loadHiddenTaskSuggestions()
   );
+  const [citation, setCitation] = useState<string>(() => loadCitation());
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -660,6 +671,14 @@ export default function App() {
       // silent fail on unsupported environments
     }
   }, [hiddenTaskSuggestions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CITATION_STORAGE_KEY, citation);
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [citation]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1080,7 +1099,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface">
       <Sidebar activePage={activePage} onNavigate={handleNavigate} onExportData={handleExportData} />
-      <TopBar activePage={activePage} onNavigate={handleNavigate} />
+      <TopBar
+        activePage={activePage}
+        onNavigate={handleNavigate}
+        citation={citation}
+        onCitationChange={setCitation}
+      />
 
       {activePage === 'journal' ? (
         <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
