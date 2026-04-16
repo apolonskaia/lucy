@@ -15,6 +15,7 @@ import { AppPage, JobApplication, LearningResource, MonthlyGoal, ProgressItem, T
 import { taskConfig } from './taskConfig';
 
 type SheetValue = string | number;
+type DropPosition = 'before' | 'after';
 
 const mockTasks: Task[] = [
   {
@@ -57,6 +58,7 @@ const MONTHLY_GOALS_STORAGE_KEY = 'lucy-monthly-goals-v1';
 const JOB_APPLICATIONS_STORAGE_KEY = 'lucy-job-applications-v1';
 const LEARNING_RESOURCES_STORAGE_KEY = 'lucy-learning-resources-v1';
 const HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY = 'lucy-hidden-task-suggestions-v1';
+const CITATION_STORAGE_KEY = 'lucy-citation-v1';
 const appPages: AppPage[] = ['journal', 'job-search', 'learning-hub', 'wellness-tracker'];
 
 const pageConfig: Record<AppPage, { title: string; description: string; taskType?: Task['type'] }> = {
@@ -265,6 +267,15 @@ const loadHiddenTaskSuggestions = (): Record<'job' | 'learning' | 'wellness', st
   }
 };
 
+const loadCitation = (): string => {
+  try {
+    const raw = localStorage.getItem(CITATION_STORAGE_KEY);
+    return typeof raw === 'string' ? raw : '';
+  } catch {
+    return '';
+  }
+};
+
 const buildMonthlyApplicationSummary = (applications: JobApplication[]) => {
   const monthFormatter = new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -384,11 +395,13 @@ export default function App() {
   const [hiddenTaskSuggestions, setHiddenTaskSuggestions] = useState<Record<'job' | 'learning' | 'wellness', string[]>>(
     () => loadHiddenTaskSuggestions()
   );
+  const [citation, setCitation] = useState<string>(() => loadCitation());
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
+  const [dragOverPosition, setDragOverPosition] = useState<DropPosition | null>(null);
+  const [isDraggingOverListEnd, setIsDraggingOverListEnd] = useState(false);
 
   const progressGroups = [
     { type: 'job' as const, label: taskConfig.job.label, color: taskConfig.job.progress },
@@ -494,6 +507,56 @@ export default function App() {
     return tasks.filter((task) => task.date === selectedDateStr);
   };
 
+  const clearDragState = () => {
+    setDraggedTaskId(null);
+    setDragOverTaskId(null);
+    setDragOverPosition(null);
+    setIsDraggingOverListEnd(false);
+  };
+
+  const reorderTasksForSelectedDate = (
+    currentTasks: Task[],
+    taskIdToMove: string,
+    targetTaskId: string | null,
+    dropPosition: DropPosition
+  ) => {
+    const selectedDateStr = formatDateToString(selectedDate);
+    const dailyTasks = currentTasks.filter((task) => task.date === selectedDateStr);
+    const taskMap = new Map(dailyTasks.map((task) => [task.id, task]));
+    const reorderedTaskIds = dailyTasks.map((task) => task.id).filter((taskId) => taskId !== taskIdToMove);
+
+    if (!taskMap.has(taskIdToMove)) {
+      return currentTasks;
+    }
+
+    const insertionIndex =
+      targetTaskId === null
+        ? reorderedTaskIds.length
+        : reorderedTaskIds.indexOf(targetTaskId) + (dropPosition === 'after' ? 1 : 0);
+
+    if (insertionIndex < 0) {
+      return currentTasks;
+    }
+
+    reorderedTaskIds.splice(insertionIndex, 0, taskIdToMove);
+
+    const reorderedDailyTasks = reorderedTaskIds
+      .map((taskId) => taskMap.get(taskId))
+      .filter((task): task is Task => Boolean(task));
+
+    let dailyTaskIndex = 0;
+
+    return currentTasks.map((task) => {
+      if (task.date !== selectedDateStr) {
+        return task;
+      }
+
+      const nextTask = reorderedDailyTasks[dailyTaskIndex];
+      dailyTaskIndex += 1;
+      return nextTask;
+    });
+  };
+
   const handleSelectDate = (day: number) => {
     const newDate = new Date(currentMonth.year, currentMonth.month, day);
     setSelectedDate(newDate);
@@ -510,39 +573,85 @@ export default function App() {
     );
   };
 
-  const handleDragStart = (taskId: string) => {
+  const handleDragStart = (event: DragEvent<HTMLDivElement>, taskId: string) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', taskId);
     setDraggedTaskId(taskId);
   };
 
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
+  const handleDragEnd = () => {
+    clearDragState();
   };
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>, dropIndex: number) => {
-    event.preventDefault();
-    if (draggedTaskId === null) return;
+  const getDropPosition = (element: HTMLDivElement | null, clientY: number): DropPosition => {
+    if (element === null) {
+      return 'after';
+    }
 
-    const draggedIndex = tasks.findIndex((task) => task.id === draggedTaskId);
-    if (draggedIndex === -1 || draggedIndex === dropIndex) {
-      setDraggedTaskId(null);
+    const { top, height } = element.getBoundingClientRect();
+    return clientY < top + height / 2 ? 'before' : 'after';
+  };
+
+  const handleDragEnterTask = (event: DragEvent<HTMLDivElement>, targetTaskId: string) => {
+    event.preventDefault();
+
+    if (draggedTaskId === null || draggedTaskId === targetTaskId) {
       return;
     }
 
-    const newTasks = [...tasks];
-    const [draggedTask] = newTasks.splice(draggedIndex, 1);
-    newTasks.splice(dropIndex, 0, draggedTask);
-    setTasks(newTasks);
-    setDraggedTaskId(null);
-    setDragOverIndex(null);
+    const dropPosition = getDropPosition(event.currentTarget, event.clientY);
+
+    setDragOverTaskId(targetTaskId);
+    setDragOverPosition(dropPosition);
+    setIsDraggingOverListEnd(false);
+  };
+
+  const handleDragOverTask = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleDragEnterListEnd = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    if (draggedTaskId === null) {
+      return;
+    }
+
+    setDragOverTaskId(null);
+    setDragOverPosition(null);
+    setIsDraggingOverListEnd(true);
+  };
+
+  const handleDragOverListEnd = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleDropOnTask = (event: DragEvent<HTMLDivElement>, targetTaskId: string) => {
+    event.preventDefault();
+
+    if (draggedTaskId === null || draggedTaskId === targetTaskId) {
+      clearDragState();
+      return;
+    }
+
+    const dropPosition = getDropPosition(event.currentTarget, event.clientY);
+
+    setTasks((prevTasks) => reorderTasksForSelectedDate(prevTasks, draggedTaskId, targetTaskId, dropPosition));
+    clearDragState();
+  };
+
+  const handleDropAtListEnd = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    if (draggedTaskId === null) {
+      return;
+    }
+
+    setTasks((prevTasks) => reorderTasksForSelectedDate(prevTasks, draggedTaskId, null, 'after'));
+    clearDragState();
   };
 
   const handleOpenNewTaskModal = () => {
-    setEditingTask(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task);
     setIsModalOpen(true);
   };
 
@@ -552,23 +661,6 @@ export default function App() {
       learning: 'Learning',
       wellness: 'Wellness',
     };
-
-    if (editingTask) {
-      setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-          task.id === editingTask.id
-            ? {
-                ...task,
-                title: taskData.title,
-                category: categoryMap[taskData.type],
-                type: taskData.type,
-              }
-            : task
-        )
-      );
-      setEditingTask(null);
-      return;
-    }
 
     const newTask: Task = {
       id: Math.random().toString(36).slice(2, 11),
@@ -586,8 +678,20 @@ export default function App() {
     setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
   };
 
+  const handleUpdateTask = (taskId: string, updates: Pick<Task, 'title'>) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              ...updates,
+            }
+          : task
+      )
+    );
+  };
+
   const handleCloseTaskModal = () => {
-    setEditingTask(null);
     setIsModalOpen(false);
   };
 
@@ -660,6 +764,14 @@ export default function App() {
       // silent fail on unsupported environments
     }
   }, [hiddenTaskSuggestions]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CITATION_STORAGE_KEY, citation);
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [citation]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1080,7 +1192,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface">
       <Sidebar activePage={activePage} onNavigate={handleNavigate} onExportData={handleExportData} />
-      <TopBar activePage={activePage} onNavigate={handleNavigate} />
+      <TopBar
+        activePage={activePage}
+        onNavigate={handleNavigate}
+        citation={citation}
+        onCitationChange={setCitation}
+      />
 
       {activePage === 'journal' ? (
         <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
@@ -1098,23 +1215,49 @@ export default function App() {
                   </div>
 
                   <div className="space-y-4 custom-scrollbar overflow-y-auto max-h-[500px] pr-2">
-                    {getTasksForSelectedDate().map((task, index) => (
+                    {getTasksForSelectedDate().map((task) => (
                       <div
                         key={task.id}
-                        onDragOver={handleDragOver}
-                        onDrop={(event) => handleDrop(event, index)}
-                        className={dragOverIndex === index ? 'opacity-50' : ''}
+                        onDragEnter={(event) => handleDragEnterTask(event, task.id)}
+                        onDragOver={handleDragOverTask}
+                        onDrop={(event) => handleDropOnTask(event, task.id)}
+                        className={[
+                          'rounded-2xl transition-all duration-150',
+                          dragOverTaskId === task.id && dragOverPosition === 'before'
+                            ? 'ring-2 ring-primary/50 ring-offset-2 ring-offset-white'
+                            : '',
+                          dragOverTaskId === task.id && dragOverPosition === 'after'
+                            ? 'ring-2 ring-primary/50 ring-offset-2 ring-offset-white translate-y-1'
+                            : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
                       >
                         <TaskItem
                           task={task}
                           onToggle={handleToggleTask}
-                          onEdit={handleEditTask}
+                          onUpdate={handleUpdateTask}
                           onDelete={handleDeleteTask}
                           onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
                           isDragging={draggedTaskId === task.id}
                         />
                       </div>
                     ))}
+
+                    {getTasksForSelectedDate().length > 0 && (
+                      <div
+                        onDragEnter={handleDragEnterListEnd}
+                        onDragOver={handleDragOverListEnd}
+                        onDrop={handleDropAtListEnd}
+                        className={`h-6 rounded-xl border border-dashed transition-all duration-150 ${
+                          isDraggingOverListEnd
+                            ? 'border-primary/70 bg-primary/10'
+                            : 'border-transparent bg-transparent'
+                        }`}
+                        aria-hidden="true"
+                      />
+                    )}
                   </div>
 
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
@@ -1154,7 +1297,6 @@ export default function App() {
         isOpen={isModalOpen}
         onClose={handleCloseTaskModal}
         onSubmitTask={handleSubmitTask}
-        initialTask={editingTask}
         suggestions={taskTitleSuggestions}
         onDeleteSuggestion={handleDeleteTaskSuggestion}
       />
