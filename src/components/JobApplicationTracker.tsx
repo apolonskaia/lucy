@@ -2,7 +2,8 @@ import { ExternalLink, LoaderCircle, Plus, Sparkles, Trash2, Upload, X } from 'l
 import { useMemo, useState, type FormEvent } from 'react';
 import { analyzeCvMatch } from '../utils/analyzeCvMatch';
 import { extractCvText } from '../utils/extractCvText';
-import { CvAnalysis, JobApplication, JobApplicationStatus, JobApplicationType } from '../types';
+import { CvAnalysis, JobApplication, JobApplicationStatus, JobApplicationType, JobStrategyNote } from '../types';
+import JobStrategyNotes from './JobStrategyNotes';
 
 const typeOptions: Array<{ value: JobApplicationType; label: string }> = [
   { value: 'tech', label: 'Tech' },
@@ -41,9 +42,16 @@ const getDaysInMonth = (yearMonth: string) => {
 
 interface JobApplicationTrackerProps {
   applications: JobApplication[];
+  strategyNotes: JobStrategyNote[];
+  strategyMonth: Date;
   onAddApplication: (application: Omit<JobApplication, 'id'>) => void;
   onUpdateApplication: (applicationId: string, application: Omit<JobApplication, 'id'>) => void;
   onDeleteApplication: (applicationId: string) => void;
+  onPrevStrategyMonth: () => void;
+  onNextStrategyMonth: () => void;
+  onAddStrategyNote: (note: { title: string }) => void;
+  onUpdateStrategyNote: (noteId: string, note: { title: string }) => void;
+  onDeleteStrategyNote: (noteId: string) => void;
 }
 
 interface JobApplicationFormState {
@@ -160,9 +168,16 @@ const AnalysisResults = ({ analysis }: { analysis: CvAnalysis }) => (
 
 export default function JobApplicationTracker({
   applications,
+  strategyNotes,
+  strategyMonth,
   onAddApplication,
   onUpdateApplication,
   onDeleteApplication,
+  onPrevStrategyMonth,
+  onNextStrategyMonth,
+  onAddStrategyNote,
+  onUpdateStrategyNote,
+  onDeleteStrategyNote,
 }: JobApplicationTrackerProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [analysisTargetId, setAnalysisTargetId] = useState<string | null>(null);
@@ -371,13 +386,78 @@ export default function JobApplicationTracker({
   };
 
   return (
-    <section className="rounded-2xl border border-outline-variant/60 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-outline-variant/60 bg-white p-4 shadow-sm">
+        <div className="mb-3">
+          <h2 className="text-xl font-headline font-bold text-on-surface">Monthly Application Counts and Strategy</h2>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)] xl:items-stretch">
+        <div className="h-[126px] overflow-hidden rounded-2xl border border-outline-variant/60">
+          {monthlyApplicationSummary.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-on-surface-variant text-center">
+              Add dated applications to see monthly and weekly counts here.
+            </div>
+          ) : (
+            <>
+              <table className="min-w-[260px] w-full text-sm">
+                <thead>
+                  <tr className="h-[31px] bg-amber-100 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
+                    <th scope="col" className="px-2 py-0 text-left align-middle">Month</th>
+                    <th scope="col" className="px-2 py-0 text-center align-middle">W1</th>
+                    <th scope="col" className="px-2 py-0 text-center align-middle">W2</th>
+                    <th scope="col" className="px-2 py-0 text-center align-middle">W3</th>
+                    <th scope="col" className="px-2 py-0 text-center align-middle">W4</th>
+                    <th scope="col" className="px-2 py-0 text-center align-middle">W5</th>
+                    <th scope="col" className="px-2 py-0 text-center align-middle">Total</th>
+                  </tr>
+                </thead>
+              </table>
+
+              <div className="h-[95px] overflow-auto custom-scrollbar">
+              <table className="min-w-[260px] w-full text-sm">
+                <tbody>
+                  {monthlyApplicationSummary.map((summary, index) => (
+                    <tr key={summary.month} className={`border-t border-outline-variant/50 ${index % 2 === 0 ? 'bg-white' : 'bg-amber-50/50'}`}>
+                      <th scope="row" className="px-2 py-1.5 text-left text-sm font-headline font-semibold text-on-surface">
+                        {summary.label}
+                      </th>
+                      {summary.weeks.map((count, index) => (
+                        <td
+                          key={`${summary.month}-week-${index + 1}`}
+                          className="px-1.5 py-1.5 text-center text-xs font-medium text-on-surface"
+                        >
+                          {index === 4 && !summary.hasWeekFive ? 'NA' : count}
+                        </td>
+                      ))}
+                      <td className="px-1.5 py-1.5 text-center text-xs font-headline font-extrabold text-on-surface">
+                        {summary.total}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </div>
+            </>
+          )}
+        </div>
+
+        <JobStrategyNotes
+          notes={strategyNotes}
+          currentMonth={strategyMonth}
+          onPrevMonth={onPrevStrategyMonth}
+          onNextMonth={onNextStrategyMonth}
+          onAddNote={onAddStrategyNote}
+          onUpdateNote={onUpdateStrategyNote}
+          onDeleteNote={onDeleteStrategyNote}
+        />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-outline-variant/60 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-headline font-bold text-on-surface">Job Search</h1>
-          <p className="mt-0.5 text-sm text-on-surface-variant max-w-2xl">
-            Track every role, company, application date, status update, and posting link in one place.
-          </p>
+          <h2 className="text-xl font-headline font-bold text-on-surface">Application Tracking</h2>
         </div>
 
         <button
@@ -388,51 +468,6 @@ export default function JobApplicationTracker({
           <Plus size={16} />
           Add Application
         </button>
-      </div>
-
-      <div className="mb-4 max-w-[360px] rounded-2xl border border-outline-variant/60 overflow-hidden">
-        {monthlyApplicationSummary.length === 0 ? (
-          <div className="px-4 py-3 text-sm text-on-surface-variant text-center">
-            Add dated applications to see monthly and weekly counts here.
-          </div>
-        ) : (
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="min-w-[260px] w-full text-sm">
-              <thead>
-                <tr className="bg-amber-100 text-[11px] font-bold uppercase tracking-[0.18em] text-on-surface-variant">
-                  <th scope="col" className="px-2 py-1.5 text-left">Month</th>
-                  <th scope="col" className="px-2 py-1.5 text-center">W1</th>
-                  <th scope="col" className="px-2 py-1.5 text-center">W2</th>
-                  <th scope="col" className="px-2 py-1.5 text-center">W3</th>
-                  <th scope="col" className="px-2 py-1.5 text-center">W4</th>
-                  <th scope="col" className="px-2 py-1.5 text-center">W5</th>
-                  <th scope="col" className="px-2 py-1.5 text-center">Total</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {monthlyApplicationSummary.map((summary, index) => (
-                  <tr key={summary.month} className={`border-t border-outline-variant/50 ${index % 2 === 0 ? 'bg-white' : 'bg-amber-50/50'}`}>
-                    <th scope="row" className="px-2 py-1.5 text-left text-sm font-headline font-semibold text-on-surface">
-                      {summary.label}
-                    </th>
-                    {summary.weeks.map((count, index) => (
-                      <td
-                        key={`${summary.month}-week-${index + 1}`}
-                        className="px-1.5 py-1.5 text-center text-xs font-medium text-on-surface"
-                      >
-                        {index === 4 && !summary.hasWeekFive ? 'NA' : count}
-                      </td>
-                    ))}
-                    <td className="px-1.5 py-1.5 text-center text-xs font-headline font-extrabold text-on-surface">
-                      {summary.total}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
       <div className="rounded-2xl border border-outline-variant/60 overflow-hidden">
@@ -575,6 +610,7 @@ export default function JobApplicationTracker({
           )}
         </div>
       </div>
+      </section>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
@@ -796,6 +832,6 @@ export default function JobApplicationTracker({
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }

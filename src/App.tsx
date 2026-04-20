@@ -11,7 +11,7 @@ import NewTaskModal from './components/NewTaskModal';
 import MonthlyGoals from './components/MonthlyGoals';
 import JobApplicationTracker from './components/JobApplicationTracker';
 import LearningResourcesTracker from './components/LearningResourcesTracker';
-import { AppPage, JobApplication, LearningResource, MonthlyGoal, ProgressItem, Task } from './types';
+import { AppPage, JobApplication, JobStrategyNote, LearningResource, MonthlyGoal, ProgressItem, Task } from './types';
 import { taskConfig } from './taskConfig';
 
 type SheetValue = string | number;
@@ -56,6 +56,7 @@ const mockTasks: Task[] = [
 const STORAGE_KEY = 'lucy-tasks-v1';
 const MONTHLY_GOALS_STORAGE_KEY = 'lucy-monthly-goals-v1';
 const JOB_APPLICATIONS_STORAGE_KEY = 'lucy-job-applications-v1';
+const JOB_STRATEGY_NOTES_STORAGE_KEY = 'lucy-job-strategy-notes-v1';
 const LEARNING_RESOURCES_STORAGE_KEY = 'lucy-learning-resources-v1';
 const HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY = 'lucy-hidden-task-suggestions-v1';
 const CITATION_STORAGE_KEY = 'lucy-citation-v1';
@@ -194,6 +195,17 @@ const loadJobApplications = (): JobApplication[] => {
     return Array.isArray(parsed) ? parsed : createMockJobApplications();
   } catch {
     return createMockJobApplications();
+  }
+};
+
+const loadJobStrategyNotes = (): JobStrategyNote[] => {
+  try {
+    const raw = localStorage.getItem(JOB_STRATEGY_NOTES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: JobStrategyNote[] = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
 };
 
@@ -391,6 +403,8 @@ export default function App() {
   const [monthlyGoalsMonth, setMonthlyGoalsMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
   const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>(() => loadMonthlyGoals());
   const [jobApplications, setJobApplications] = useState<JobApplication[]>(() => loadJobApplications());
+  const [jobStrategyMonth, setJobStrategyMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [jobStrategyNotes, setJobStrategyNotes] = useState<JobStrategyNote[]>(() => loadJobStrategyNotes());
   const [learningResources, setLearningResources] = useState<LearningResource[]>(() => loadLearningResources());
   const [hiddenTaskSuggestions, setHiddenTaskSuggestions] = useState<Record<'job' | 'learning' | 'wellness', string[]>>(
     () => loadHiddenTaskSuggestions()
@@ -412,6 +426,8 @@ export default function App() {
 
   const currentMonthlyGoalsKey = formatMonthKey(monthlyGoalsMonth);
   const monthlyGoalsForSelectedMonth = monthlyGoals.filter((goal) => goal.month === currentMonthlyGoalsKey);
+  const currentJobStrategyKey = formatMonthKey(jobStrategyMonth);
+  const jobStrategyNotesForSelectedMonth = jobStrategyNotes.filter((note) => note.month === currentJobStrategyKey);
   const taskTitleSuggestions = taskTypes.reduce<Record<'job' | 'learning' | 'wellness', string[]>>(
     (accumulator, taskType) => {
       const titleCounts = tasks
@@ -751,6 +767,14 @@ export default function App() {
 
   useEffect(() => {
     try {
+      localStorage.setItem(JOB_STRATEGY_NOTES_STORAGE_KEY, JSON.stringify(jobStrategyNotes));
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [jobStrategyNotes]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem(LEARNING_RESOURCES_STORAGE_KEY, JSON.stringify(learningResources));
     } catch {
       // silent fail on unsupported environments
@@ -808,6 +832,14 @@ export default function App() {
     setMonthlyGoalsMonth((prevMonth) => new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 1));
   };
 
+  const handlePrevJobStrategyMonth = () => {
+    setJobStrategyMonth((prevMonth) => new Date(prevMonth.getFullYear(), prevMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextJobStrategyMonth = () => {
+    setJobStrategyMonth((prevMonth) => new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 1));
+  };
+
   const handleNavigate = (page: AppPage) => {
     setActivePage(page);
 
@@ -840,6 +872,34 @@ export default function App() {
     setJobApplications((previousApplications) =>
       previousApplications.filter((application) => application.id !== applicationId)
     );
+  };
+
+  const handleAddJobStrategyNote = (note: { title: string }) => {
+    setJobStrategyNotes((previousNotes) => [
+      ...previousNotes,
+      {
+        id: Math.random().toString(36).slice(2, 11),
+        month: currentJobStrategyKey,
+        title: note.title,
+      },
+    ]);
+  };
+
+  const handleUpdateJobStrategyNote = (noteId: string, note: { title: string }) => {
+    setJobStrategyNotes((previousNotes) =>
+      previousNotes.map((currentNote) =>
+        currentNote.id === noteId
+          ? {
+              ...currentNote,
+              title: note.title,
+            }
+          : currentNote
+      )
+    );
+  };
+
+  const handleDeleteJobStrategyNote = (noteId: string) => {
+    setJobStrategyNotes((previousNotes) => previousNotes.filter((note) => note.id !== noteId));
   };
 
   const handleAddLearningResource = (resource: Omit<LearningResource, 'id'>) => {
@@ -883,10 +943,12 @@ export default function App() {
     const monthlyApplicationSummary = buildMonthlyApplicationSummary(jobApplications);
     const sortedTasks = [...tasks].sort((first, second) => first.date.localeCompare(second.date) || first.title.localeCompare(second.title));
     const sortedMonthlyGoals = [...monthlyGoals].sort((first, second) => first.month.localeCompare(second.month) || first.title.localeCompare(second.title));
+    const sortedJobStrategyNotes = [...jobStrategyNotes].sort((first, second) => first.month.localeCompare(second.month) || first.title.localeCompare(second.title));
 
     const timelineStartCandidates = [
       ...sortedTasks.map((task) => new Date(`${task.date}T00:00:00`)),
       ...sortedMonthlyGoals.map((goal) => new Date(`${goal.month}-01T00:00:00`)),
+      ...sortedJobStrategyNotes.map((note) => new Date(`${note.month}-01T00:00:00`)),
     ].filter((date) => !Number.isNaN(date.getTime()));
 
     const timelineStart = timelineStartCandidates.length > 0
@@ -1051,6 +1113,20 @@ export default function App() {
       ]),
       'No job applications logged yet.'
     );
+    addSheetSection(
+      jobRows,
+      `Strategy Notes (${currentJobStrategyKey})`,
+      ['#', 'Month', 'Note'],
+      jobStrategyNotesForSelectedMonth.map((note, index) => [index + 1, note.month, note.title]),
+      'No strategy notes for this month.'
+    );
+    addSheetSection(
+      jobRows,
+      'Strategy Notes History',
+      ['#', 'Month', 'Note'],
+      sortedJobStrategyNotes.map((note, index) => [index + 1, note.month, note.title]),
+      'No strategy notes saved yet.'
+    );
     XLSX.utils.book_append_sheet(workbook, makeWorksheet(jobRows, [24, 18, 16, 16, 18, 18, 18, 18, 24]), 'Job Search');
 
     const learningRows: SheetValue[][] = [];
@@ -1107,7 +1183,7 @@ export default function App() {
                 todayTasks.map((task) => (
                   <div key={task.id} className={`h-8 rounded-xl px-3 py-1.5 ${taskConfig[task.type].background}`}>
                     <div className="flex h-5 items-center justify-between gap-2">
-                      <h3 className="flex-1 truncate text-sm font-headline font-bold text-on-surface leading-none">{task.title}</h3>
+                      <h3 className="flex-1 truncate text-sm text-on-surface leading-none">{task.title}</h3>
                       <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-on-surface-variant leading-none">
                         {task.status}
                       </span>
@@ -1131,7 +1207,7 @@ export default function App() {
                 relatedGoals.slice(0, 5).map((goal) => (
                   <div key={goal.id} className={`h-8 rounded-xl px-3 py-1.5 ${taskConfig[goal.type].background}`}>
                     <div className="flex h-5 items-center">
-                      <h3 className="truncate text-sm font-headline font-bold text-on-surface leading-none">{goal.title}</h3>
+                      <h3 className="truncate text-sm text-on-surface leading-none">{goal.title}</h3>
                     </div>
                   </div>
                 ))
@@ -1151,9 +1227,16 @@ export default function App() {
             {renderCompactTrackerSections('job')}
             <JobApplicationTracker
               applications={jobApplications}
+              strategyNotes={jobStrategyNotesForSelectedMonth}
+              strategyMonth={jobStrategyMonth}
               onAddApplication={handleAddJobApplication}
               onUpdateApplication={handleUpdateJobApplication}
               onDeleteApplication={handleDeleteJobApplication}
+              onPrevStrategyMonth={handlePrevJobStrategyMonth}
+              onNextStrategyMonth={handleNextJobStrategyMonth}
+              onAddStrategyNote={handleAddJobStrategyNote}
+              onUpdateStrategyNote={handleUpdateJobStrategyNote}
+              onDeleteStrategyNote={handleDeleteJobStrategyNote}
             />
           </div>
         </main>
