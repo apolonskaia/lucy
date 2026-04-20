@@ -707,6 +707,24 @@ export default function App() {
     );
   };
 
+  const handleMoveTaskToNextDay = (taskId: string) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) => {
+        if (task.id !== taskId) {
+          return task;
+        }
+
+        const nextDate = new Date(`${task.date}T12:00:00`);
+        nextDate.setDate(nextDate.getDate() + 1);
+
+        return {
+          ...task,
+          date: formatDateToString(nextDate),
+        };
+      })
+    );
+  };
+
   const handleCloseTaskModal = () => {
     setIsModalOpen(false);
   };
@@ -1321,9 +1339,11 @@ export default function App() {
                           onToggle={handleToggleTask}
                           onUpdate={handleUpdateTask}
                           onDelete={handleDeleteTask}
+                          onMoveToNextDay={handleMoveTaskToNextDay}
                           onDragStart={handleDragStart}
                           onDragEnd={handleDragEnd}
                           isDragging={draggedTaskId === task.id}
+                          showMoveToNextDayAction
                         />
                       </div>
                     ))}
