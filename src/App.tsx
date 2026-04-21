@@ -11,6 +11,7 @@ import NewTaskModal from './components/NewTaskModal';
 import MonthlyGoals from './components/MonthlyGoals';
 import JobApplicationTracker from './components/JobApplicationTracker';
 import LearningResourcesTracker from './components/LearningResourcesTracker';
+import WellnessMeditationTimer from './components/WellnessMeditationTimer';
 import { AppPage, JobApplication, JobStrategyNote, LearningResource, MonthlyGoal, ProgressItem, Task } from './types';
 import { taskConfig } from './taskConfig';
 
@@ -1282,6 +1283,7 @@ export default function App() {
         <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
           <div className="max-w-7xl mx-auto space-y-4">
             {renderCompactTrackerSections('wellness')}
+            <WellnessMeditationTimer />
           </div>
         </main>
       );

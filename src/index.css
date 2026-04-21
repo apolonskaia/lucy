@@ -37,3 +37,42 @@
   background: #c5c6cf;
   border-radius: 10px;
 }
+
+.meditation-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+.meditation-volume-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #ffffff;
+}
+
+.meditation-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -5px;
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: #d9f99d;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.meditation-volume-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #ffffff;
+}
+
+.meditation-volume-slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 9999px;
+  background: #d9f99d;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px #ffffff;
+}
