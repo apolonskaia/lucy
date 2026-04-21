@@ -77,3 +77,9 @@ export interface MonthlyGoal {
   title: string;
   type: 'job' | 'learning' | 'wellness';
 }
+
+export interface JobStrategyNote {
+  id: string;
+  month: string; // YYYY-MM format
+  title: string;
+}

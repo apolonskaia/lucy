@@ -1,4 +1,4 @@
-import { GripVertical, Trash2 } from 'lucide-react';
+import { ArrowRight, GripVertical, Trash2 } from 'lucide-react';
 import { useEffect, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { Task } from '../types';
 import { motion } from 'motion/react';
@@ -9,12 +9,24 @@ interface TaskItemProps {
   onToggle: (taskId: string) => void;
   onUpdate: (taskId: string, updates: Pick<Task, 'title'>) => void;
   onDelete: (taskId: string) => void;
+  onMoveToNextDay?: (taskId: string) => void;
   onDragStart?: (event: DragEvent<HTMLDivElement>, taskId: string) => void;
   onDragEnd?: () => void;
   isDragging?: boolean;
+  showMoveToNextDayAction?: boolean;
 }
 
-export default function TaskItem({ task, onToggle, onUpdate, onDelete, onDragStart, onDragEnd, isDragging }: TaskItemProps) {
+export default function TaskItem({
+  task,
+  onToggle,
+  onUpdate,
+  onDelete,
+  onMoveToNextDay,
+  onDragStart,
+  onDragEnd,
+  isDragging,
+  showMoveToNextDayAction = false,
+}: TaskItemProps) {
   const isCompleted = task.status === 'completed';
   const palette = taskConfig[task.type];
   const Icon = palette.iconComponent;
@@ -91,7 +103,20 @@ export default function TaskItem({ task, onToggle, onUpdate, onDelete, onDragSta
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          {showMoveToNextDayAction && onMoveToNextDay && (
+            <button
+              type="button"
+              onClick={() => onMoveToNextDay(task.id)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-amber-600/80 opacity-0 transition-all hover:bg-amber-50 hover:text-amber-700 group-hover:opacity-100"
+              aria-label="Move task to next day"
+              title="Move task to next day"
+            >
+              <ArrowRight size={15} />
+            </button>
+          )}
+
           <button
+            type="button"
             onClick={() => onDelete(task.id)}
             className="h-7 w-7 shrink-0 rounded text-on-surface-variant/50 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
           >
