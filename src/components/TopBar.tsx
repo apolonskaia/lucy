@@ -1,23 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AppPage } from '../types';
-
-const measureCitationWidth = (text: string) => {
-  if (typeof document === 'undefined') {
-    return 240;
-  }
-
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-
-  if (!context) {
-    return 240;
-  }
-
-  context.font = '500 14px Inter, sans-serif';
-  const measuredWidth = context.measureText(text).width;
-
-  return measuredWidth;
-};
 
 interface TopBarProps {
   activePage: AppPage;
@@ -30,6 +12,8 @@ export default function TopBar({ activePage, onNavigate, citation, onCitationCha
   const faviconSrc = `${import.meta.env.BASE_URL}favicon.svg`;
   const [isCitationFocused, setIsCitationFocused] = useState(false);
   const [citationWidthText, setCitationWidthText] = useState(citation);
+  const [citationWidthPx, setCitationWidthPx] = useState(240);
+  const citationMeasureRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (!isCitationFocused) {
@@ -37,18 +21,39 @@ export default function TopBar({ activePage, onNavigate, citation, onCitationCha
     }
   }, [citation, isCitationFocused]);
 
-  const citationWidth = useMemo(() => {
+  useLayoutEffect(() => {
     const textForWidth = citationWidthText.trim() || 'Add a citation to keep in view...';
-    const measuredWidth = measureCitationWidth(textForWidth);
-    const horizontalChrome = 22;
-    const minWidth = citationWidthText.trim() ? 120 : 240;
-    const maxWidth = 420;
+    const updateCitationWidth = () => {
+      const measuredWidth = citationMeasureRef.current?.offsetWidth ?? 0;
+      const horizontalChrome = 22;
+      const minWidth = citationWidthText.trim() ? 120 : 240;
+      const maxWidth = 420;
 
-    return `${Math.max(Math.min(Math.ceil(measuredWidth) + horizontalChrome, maxWidth), minWidth)}px`;
+      setCitationWidthPx(Math.max(Math.min(Math.ceil(measuredWidth) + horizontalChrome, maxWidth), minWidth));
+    };
+
+    updateCitationWidth();
+
+    if (typeof document !== 'undefined' && 'fonts' in document) {
+      void document.fonts.ready.then(() => {
+        updateCitationWidth();
+      });
+    }
   }, [citationWidthText]);
+
+  const textForWidth = citationWidthText.trim() || 'Add a citation to keep in view...';
+  const citationWidth = `${citationWidthPx}px`;
 
   return (
     <header className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl flex justify-between items-center px-8 h-16 shadow-sm">
+      <span
+        ref={citationMeasureRef}
+        className="pointer-events-none absolute left-0 top-0 invisible whitespace-pre px-0 text-sm font-medium"
+        aria-hidden="true"
+      >
+        {textForWidth}
+      </span>
+
       <div className="flex items-center min-w-0">
         <div className="flex items-center gap-3">
           <img src={faviconSrc} alt="Lucy favicon" className="h-7 w-7 shrink-0" />
