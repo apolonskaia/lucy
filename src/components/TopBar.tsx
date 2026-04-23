@@ -1,11 +1,23 @@
-import { Bell, Settings } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppPage } from '../types';
 
-const navItems = [
-  { label: 'Job Search', page: 'job-search' as AppPage },
-  { label: 'Learning Hub', page: 'learning-hub' as AppPage },
-  { label: 'Wellness Tracker', page: 'wellness-tracker' as AppPage },
-];
+const measureCitationWidth = (text: string) => {
+  if (typeof document === 'undefined') {
+    return 240;
+  }
+
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    return 240;
+  }
+
+  context.font = '500 14px Inter, sans-serif';
+  const measuredWidth = context.measureText(text).width;
+
+  return measuredWidth;
+};
 
 interface TopBarProps {
   activePage: AppPage;
@@ -16,54 +28,67 @@ interface TopBarProps {
 
 export default function TopBar({ activePage, onNavigate, citation, onCitationChange }: TopBarProps) {
   const faviconSrc = `${import.meta.env.BASE_URL}favicon.svg`;
-  const citationWidth = `${Math.max(Math.min(citation.trim().length + 2, 32), 24)}ch`;
+  const [isCitationFocused, setIsCitationFocused] = useState(false);
+  const [citationWidthText, setCitationWidthText] = useState(citation);
+
+  useEffect(() => {
+    if (!isCitationFocused) {
+      setCitationWidthText(citation);
+    }
+  }, [citation, isCitationFocused]);
+
+  const citationWidth = useMemo(() => {
+    const textForWidth = citationWidthText.trim() || 'Add a citation to keep in view...';
+    const measuredWidth = measureCitationWidth(textForWidth);
+    const horizontalChrome = 22;
+    const minWidth = citationWidthText.trim() ? 120 : 240;
+    const maxWidth = 420;
+
+    return `${Math.max(Math.min(Math.ceil(measuredWidth) + horizontalChrome, maxWidth), minWidth)}px`;
+  }, [citationWidthText]);
 
   return (
     <header className="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl flex justify-between items-center px-8 h-16 shadow-sm">
-      <div className="flex items-center gap-8 min-w-0">
+      <div className="flex items-center min-w-0">
         <div className="flex items-center gap-3">
           <img src={faviconSrc} alt="Lucy favicon" className="h-7 w-7 shrink-0" />
           <span className="text-2xl font-bold tracking-tighter text-primary font-headline">Lucy</span>
         </div>
-        <nav className="hidden md:flex gap-8">
-          {navItems.map((item) => (
-            <button
-              key={item.page}
-              type="button"
-              onClick={() => onNavigate(item.page)}
-              className={`h-10 transition-colors font-headline text-[15px] leading-none font-semibold tracking-[0.01em] ${
-                activePage === item.page ? 'text-primary' : 'text-on-surface-variant hover:text-primary'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
       </div>
 
       <div className="flex items-center gap-4 min-w-0">
         <div
-          className={`hidden lg:flex h-8 items-center rounded-xl border px-3 transition-colors ${
-            citation.trim() ? 'border-transparent bg-[#fcfbe1]' : 'border-outline-variant bg-white/80'
+          className={`hidden lg:flex h-8 items-center rounded-xl border pl-3 pr-2 transition-colors ${
+            citation.trim() ? 'border-transparent bg-pink-100' : 'border-outline-variant bg-white/80'
           }`}
-          style={{ width: citationWidth, maxWidth: '42rem' }}
+          style={{ width: citationWidth, maxWidth: '420px' }}
         >
           <input
             type="text"
             value={citation}
-            onChange={(event) => onCitationChange(event.target.value)}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+
+              onCitationChange(nextValue);
+
+              if (isCitationFocused && nextValue.trim().length <= citationWidthText.trim().length) {
+                setCitationWidthText(nextValue);
+              }
+            }}
+            onFocus={() => {
+              setIsCitationFocused(true);
+              setCitationWidthText(citation);
+            }}
+            onBlur={() => {
+              setIsCitationFocused(false);
+              setCitationWidthText(citation);
+            }}
             placeholder="Add a citation to keep in view..."
-            className={`min-w-0 flex-1 bg-transparent text-sm text-on-surface-variant placeholder:text-slate-400 focus:outline-none ${
+            className={`min-w-0 flex-1 bg-transparent pr-0 text-sm text-on-surface-variant placeholder:text-slate-400 focus:outline-none ${
               citation.trim() ? 'text-left font-medium' : 'text-left font-medium'
             }`}
           />
         </div>
-        <button className="p-2 rounded-full hover:bg-surface-container transition-colors">
-          <Bell size={20} className="text-primary" />
-        </button>
-        <button className="p-2 rounded-full hover:bg-surface-container transition-colors">
-          <Settings size={20} className="text-primary" />
-        </button>
 
         <div className="h-8 w-8 rounded-full overflow-hidden bg-surface-container-high border-2 border-white ml-2 shadow-sm">
           <img
