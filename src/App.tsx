@@ -581,13 +581,37 @@ export default function App() {
   };
 
   const handleToggleTask = (taskId: string) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId
-          ? { ...task, status: task.status === 'completed' ? 'pending' : 'completed' }
-          : task
-      )
-    );
+    setTasks((prevTasks) => {
+      const taskToToggle = prevTasks.find((task) => task.id === taskId);
+
+      if (!taskToToggle) {
+        return prevTasks;
+      }
+
+      const nextStatus = taskToToggle.status === 'completed' ? 'pending' : 'completed';
+      const updatedTask = { ...taskToToggle, status: nextStatus };
+      const sameDateTasks = prevTasks.filter((task) => task.date === taskToToggle.date);
+      const remainingSameDateTasks = sameDateTasks.filter((task) => task.id !== taskId);
+      const pendingTasks = remainingSameDateTasks.filter((task) => task.status !== 'completed');
+      const completedTasks = remainingSameDateTasks.filter((task) => task.status === 'completed');
+
+      const reorderedSameDateTasks =
+        nextStatus === 'completed'
+          ? [...pendingTasks, ...completedTasks, updatedTask]
+          : [...pendingTasks, updatedTask, ...completedTasks];
+
+      let sameDateTaskIndex = 0;
+
+      return prevTasks.map((task) => {
+        if (task.date !== taskToToggle.date) {
+          return task;
+        }
+
+        const nextTask = reorderedSameDateTasks[sameDateTaskIndex];
+        sameDateTaskIndex += 1;
+        return nextTask;
+      });
+    });
   };
 
   const handleDragStart = (event: DragEvent<HTMLDivElement>, taskId: string) => {
