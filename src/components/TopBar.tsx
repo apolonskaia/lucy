@@ -64,7 +64,7 @@ export default function TopBar({ activePage, onNavigate, citation, onCitationCha
       <div className="flex items-center gap-4 min-w-0">
         <div
           className={`hidden lg:flex h-8 items-center rounded-xl border pl-3 pr-2 transition-colors ${
-            citation.trim() ? 'border-transparent bg-pink-100' : 'border-outline-variant bg-white/80'
+            citation.trim() ? 'border-transparent bg-[#fceede]' : 'border-outline-variant bg-white/80'
           }`}
           style={{ width: citationWidth, maxWidth: '420px' }}
         >
