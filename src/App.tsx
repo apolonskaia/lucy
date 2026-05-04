@@ -1,5 +1,5 @@
-import { Plus } from 'lucide-react';
-import { useEffect, useState, type DragEvent } from 'react';
+import { Plus, X } from 'lucide-react';
+import { useEffect, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { motion } from 'motion/react';
 import * as XLSX from 'xlsx';
 import Sidebar from './components/Sidebar';
@@ -62,6 +62,8 @@ const LEARNING_RESOURCES_STORAGE_KEY = 'lucy-learning-resources-v1';
 const HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY = 'lucy-hidden-task-suggestions-v1';
 const CITATION_STORAGE_KEY = 'lucy-citation-v1';
 const appPages: AppPage[] = ['journal', 'job-search', 'learning-hub', 'wellness-tracker'];
+type TaskType = 'job' | 'learning' | 'wellness';
+type HiddenTaskSuggestionsByDate = Record<string, Record<TaskType, string[]>>;
 
 const pageConfig: Record<AppPage, { title: string; description: string; taskType?: Task['type'] }> = {
   journal: {
@@ -252,31 +254,47 @@ const loadLearningResources = (): LearningResource[] => {
   }
 };
 
-const loadHiddenTaskSuggestions = (): Record<'job' | 'learning' | 'wellness', string[]> => {
+const createEmptyHiddenTaskSuggestionGroups = (): Record<TaskType, string[]> => ({
+  job: [],
+  learning: [],
+  wellness: [],
+});
+
+const loadHiddenTaskSuggestions = (): HiddenTaskSuggestionsByDate => {
   try {
     const raw = localStorage.getItem(HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY);
 
     if (!raw) {
-      return {
-        job: [],
-        learning: [],
-        wellness: [],
-      };
+      return {};
     }
 
-    const parsed = JSON.parse(raw) as Partial<Record<'job' | 'learning' | 'wellness', unknown>>;
+    const parsed = JSON.parse(raw) as Record<string, Partial<Record<TaskType, unknown>>>;
 
-    return {
-      job: Array.isArray(parsed.job) ? parsed.job.filter((item): item is string => typeof item === 'string') : [],
-      learning: Array.isArray(parsed.learning) ? parsed.learning.filter((item): item is string => typeof item === 'string') : [],
-      wellness: Array.isArray(parsed.wellness) ? parsed.wellness.filter((item): item is string => typeof item === 'string') : [],
-    };
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+      return {};
+    }
+
+    return Object.entries(parsed).reduce<HiddenTaskSuggestionsByDate>((accumulator, [dateKey, hiddenTitles]) => {
+      if (!hiddenTitles || Array.isArray(hiddenTitles) || typeof hiddenTitles !== 'object') {
+        return accumulator;
+      }
+
+      accumulator[dateKey] = {
+        job: Array.isArray(hiddenTitles.job)
+          ? hiddenTitles.job.filter((item): item is string => typeof item === 'string')
+          : [],
+        learning: Array.isArray(hiddenTitles.learning)
+          ? hiddenTitles.learning.filter((item): item is string => typeof item === 'string')
+          : [],
+        wellness: Array.isArray(hiddenTitles.wellness)
+          ? hiddenTitles.wellness.filter((item): item is string => typeof item === 'string')
+          : [],
+      };
+
+      return accumulator;
+    }, {});
   } catch {
-    return {
-      job: [],
-      learning: [],
-      wellness: [],
-    };
+    return {};
   }
 };
 
@@ -397,9 +415,11 @@ const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() 
 
 export default function App() {
   const today = getToday();
+  const taskTypes = ['job', 'learning', 'wellness'] as const;
   const [activePage, setActivePage] = useState<AppPage>(() => getPageFromHash());
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const selectedDateStr = formatDateToString(selectedDate);
   const [currentMonth, setCurrentMonth] = useState({ month: today.getMonth(), year: today.getFullYear() });
   const [monthlyGoalsMonth, setMonthlyGoalsMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
   const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>(() => loadMonthlyGoals());
@@ -407,9 +427,7 @@ export default function App() {
   const [jobStrategyMonth, setJobStrategyMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
   const [jobStrategyNotes, setJobStrategyNotes] = useState<JobStrategyNote[]>(() => loadJobStrategyNotes());
   const [learningResources, setLearningResources] = useState<LearningResource[]>(() => loadLearningResources());
-  const [hiddenTaskSuggestions, setHiddenTaskSuggestions] = useState<Record<'job' | 'learning' | 'wellness', string[]>>(
-    () => loadHiddenTaskSuggestions()
-  );
+  const [hiddenTaskSuggestions, setHiddenTaskSuggestions] = useState<HiddenTaskSuggestionsByDate>(() => loadHiddenTaskSuggestions());
   const [citation, setCitation] = useState<string>(() => loadCitation());
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -423,12 +441,12 @@ export default function App() {
     { type: 'learning' as const, label: taskConfig.learning.label, color: taskConfig.learning.progress },
     { type: 'wellness' as const, label: taskConfig.wellness.label, color: taskConfig.wellness.progress },
   ];
-  const taskTypes = ['job', 'learning', 'wellness'] as const;
 
   const currentMonthlyGoalsKey = formatMonthKey(monthlyGoalsMonth);
   const monthlyGoalsForSelectedMonth = monthlyGoals.filter((goal) => goal.month === currentMonthlyGoalsKey);
   const currentJobStrategyKey = formatMonthKey(jobStrategyMonth);
   const jobStrategyNotesForSelectedMonth = jobStrategyNotes.filter((note) => note.month === currentJobStrategyKey);
+  const hiddenSuggestionsForSelectedDate = hiddenTaskSuggestions[selectedDateStr] ?? createEmptyHiddenTaskSuggestionGroups();
   const taskTitleSuggestions = taskTypes.reduce<Record<'job' | 'learning' | 'wellness', string[]>>(
     (accumulator, taskType) => {
       const titleCounts = tasks
@@ -447,7 +465,7 @@ export default function App() {
       accumulator[taskType] = Object.entries(titleCounts)
         .map(([title, count]) => [title, count] as [string, number])
         .filter(([, count]) => count > 1)
-        .filter(([title]) => !hiddenTaskSuggestions[taskType].includes(title))
+        .filter(([title]) => !hiddenSuggestionsForSelectedDate[taskType].includes(title))
         .sort((firstEntry, secondEntry) => secondEntry[1] - firstEntry[1] || firstEntry[0].localeCompare(secondEntry[0]))
         .map(([title]) => title);
 
@@ -459,7 +477,7 @@ export default function App() {
       wellness: [],
     }
   );
-  
+
 
   const getWeekRange = (date: Date) => {
     const start = new Date(date);
@@ -509,6 +527,27 @@ export default function App() {
 
   const progressItems = buildProgressItems(progressView);
   const isSelectedDateToday = isSameDay(selectedDate, today);
+  const suggestedTaskOutlineClasses = {
+    job: 'border-[#fdecb0]',
+    learning: 'border-violet-100',
+    wellness: 'border-lime-100',
+  } as const;
+  const tasksForSelectedDate = tasks.filter((task) => task.date === selectedDateStr);
+  const suggestedTasksForSelectedDate = taskTypes.flatMap((taskType) => {
+    const titlesForSelectedDate = new Set(
+      tasksForSelectedDate
+        .filter((task) => task.type === taskType)
+        .map((task) => task.title.trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    return taskTitleSuggestions[taskType]
+      .filter((title) => !titlesForSelectedDate.has(title.trim().toLowerCase()))
+      .map((title) => ({
+        title,
+        type: taskType,
+      }));
+  });
 
   const formatDateDisplay = (date: Date): string => {
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -520,8 +559,7 @@ export default function App() {
   };
 
   const getTasksForSelectedDate = (): Task[] => {
-    const selectedDateStr = formatDateToString(selectedDate);
-    return tasks.filter((task) => task.date === selectedDateStr);
+    return tasksForSelectedDate;
   };
 
   const clearDragState = () => {
@@ -713,6 +751,36 @@ export default function App() {
     };
 
     setTasks((prevTasks) => [...prevTasks, newTask]);
+  };
+
+  const handleAddSuggestedTask = (taskData: { title: string; type: 'job' | 'learning' | 'wellness' }) => {
+    const normalizedTitle = taskData.title.trim().toLowerCase();
+
+    if (!normalizedTitle) {
+      return;
+    }
+
+    const taskAlreadyExists = tasksForSelectedDate.some(
+      (task) => task.type === taskData.type && task.title.trim().toLowerCase() === normalizedTitle
+    );
+
+    if (taskAlreadyExists) {
+      return;
+    }
+
+    handleSubmitTask(taskData);
+  };
+
+  const handleSuggestedTaskKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    taskData: { title: string; type: 'job' | 'learning' | 'wellness' }
+  ) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    handleAddSuggestedTask(taskData);
   };
 
   const handleDeleteTask = (taskId: string) => {
@@ -972,9 +1040,12 @@ export default function App() {
   const handleDeleteTaskSuggestion = (taskType: 'job' | 'learning' | 'wellness', title: string) => {
     setHiddenTaskSuggestions((previousSuggestions) => ({
       ...previousSuggestions,
-      [taskType]: previousSuggestions[taskType].includes(title)
-        ? previousSuggestions[taskType]
-        : [...previousSuggestions[taskType], title],
+      [selectedDateStr]: {
+        ...(previousSuggestions[selectedDateStr] ?? createEmptyHiddenTaskSuggestionGroups()),
+        [taskType]: (previousSuggestions[selectedDateStr]?.[taskType] ?? []).includes(title)
+          ? previousSuggestions[selectedDateStr]?.[taskType] ?? []
+          : [...(previousSuggestions[selectedDateStr]?.[taskType] ?? []), title],
+      },
     }));
   };
 
@@ -1342,6 +1413,51 @@ export default function App() {
                   </div>
 
                   <div className="space-y-4 custom-scrollbar overflow-y-auto max-h-[500px] pr-2">
+                    {suggestedTasksForSelectedDate.length > 0 && (
+                      <div className="space-y-3">
+                        {suggestedTasksForSelectedDate.map((suggestedTask) => {
+                          const palette = taskConfig[suggestedTask.type];
+                          const Icon = palette.iconComponent;
+                          const suggestedTaskOutlineClass = suggestedTaskOutlineClasses[suggestedTask.type];
+
+                          return (
+                            <div
+                              key={`${suggestedTask.type}-${suggestedTask.title}`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => handleAddSuggestedTask(suggestedTask)}
+                              onKeyDown={(event) => handleSuggestedTaskKeyDown(event, suggestedTask)}
+                              className={`flex h-8 cursor-pointer items-center gap-2 rounded-xl border ${suggestedTaskOutlineClass} bg-white px-3 py-1 opacity-75 shadow-sm transition-all hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30`}
+                            >
+                              <div
+                                className={`flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded border border-on-surface-variant/20 bg-white ${palette.icon} transition-all hover:${palette.background}`}
+                                aria-hidden="true"
+                              >
+                                <Plus size={12} />
+                              </div>
+                              <p className="min-w-0 flex-1 truncate text-sm font-semibold text-on-surface">
+                                {suggestedTask.title}
+                              </p>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleDeleteTaskSuggestion(suggestedTask.type, suggestedTask.title);
+                                  }}
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-on-surface-variant/50 transition-all hover:bg-red-50 hover:text-red-500"
+                                  aria-label={`Dismiss suggested task ${suggestedTask.title}`}
+                                >
+                                  <X size={15} />
+                                </button>
+                                <Icon size={15} className={`shrink-0 ${palette.icon}`} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     {getTasksForSelectedDate().map((task) => (
                       <div
                         key={task.id}
