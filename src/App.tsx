@@ -1,7 +1,6 @@
 import { Plus, X } from 'lucide-react';
-import { useEffect, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { Suspense, lazy, useEffect, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { motion } from 'motion/react';
-import * as XLSX from 'xlsx';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import TaskItem from './components/TaskItem';
@@ -9,11 +8,12 @@ import Calendar from './components/Calendar';
 import ProgressMatrix from './components/ProgressMatrix';
 import NewTaskModal from './components/NewTaskModal';
 import MonthlyGoals from './components/MonthlyGoals';
-import JobApplicationTracker from './components/JobApplicationTracker';
-import LearningResourcesTracker from './components/LearningResourcesTracker';
-import WellnessMeditationTimer from './components/WellnessMeditationTimer';
 import { AppPage, JobApplication, JobStrategyNote, LearningResource, MonthlyGoal, ProgressItem, Task } from './types';
 import { taskConfig } from './taskConfig';
+
+const JobApplicationTracker = lazy(() => import('./components/JobApplicationTracker'));
+const LearningResourcesTracker = lazy(() => import('./components/LearningResourcesTracker'));
+const WellnessMeditationTimer = lazy(() => import('./components/WellnessMeditationTimer'));
 
 type SheetValue = string | number;
 type DropPosition = 'before' | 'after';
@@ -60,10 +60,13 @@ const JOB_APPLICATIONS_STORAGE_KEY = 'lucy-job-applications-v1';
 const JOB_STRATEGY_NOTES_STORAGE_KEY = 'lucy-job-strategy-notes-v1';
 const LEARNING_RESOURCES_STORAGE_KEY = 'lucy-learning-resources-v1';
 const HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY = 'lucy-hidden-task-suggestions-v1';
+const BLOCKED_TASK_SUGGESTIONS_STORAGE_KEY = 'lucy-blocked-task-suggestions-v1';
 const CITATION_STORAGE_KEY = 'lucy-citation-v1';
 const appPages: AppPage[] = ['journal', 'job-search', 'learning-hub', 'wellness-tracker'];
 type TaskType = 'job' | 'learning' | 'wellness';
 type HiddenTaskSuggestionsByDate = Record<string, Record<TaskType, string[]>>;
+type BlockedTaskSuggestions = Record<TaskType, Record<string, number>>;
+type PendingBlockedSuggestion = { title: string; type: TaskType } | null;
 
 const pageConfig: Record<AppPage, { title: string; description: string; taskType?: Task['type'] }> = {
   journal: {
@@ -260,6 +263,56 @@ const createEmptyHiddenTaskSuggestionGroups = (): Record<TaskType, string[]> => 
   wellness: [],
 });
 
+const createEmptyBlockedTaskSuggestions = (): BlockedTaskSuggestions => ({
+  job: {},
+  learning: {},
+  wellness: {},
+});
+
+const loadBlockedTaskSuggestions = (): BlockedTaskSuggestions => {
+  try {
+    const raw = localStorage.getItem(BLOCKED_TASK_SUGGESTIONS_STORAGE_KEY);
+
+    if (!raw) {
+      return createEmptyBlockedTaskSuggestions();
+    }
+
+    const parsed = JSON.parse(raw) as Partial<Record<TaskType, unknown>>;
+
+    const normalizeBlockedGroup = (value: unknown) => {
+      if (Array.isArray(value)) {
+        return value.reduce<Record<string, number>>((accumulator, title) => {
+          if (typeof title === 'string') {
+            accumulator[title] = 2;
+          }
+
+          return accumulator;
+        }, {});
+      }
+
+      if (!value || typeof value !== 'object') {
+        return {};
+      }
+
+      return Object.entries(value).reduce<Record<string, number>>((accumulator, [title, count]) => {
+        if (typeof count === 'number' && Number.isFinite(count)) {
+          accumulator[title] = count;
+        }
+
+        return accumulator;
+      }, {});
+    };
+
+    return {
+      job: normalizeBlockedGroup(parsed.job),
+      learning: normalizeBlockedGroup(parsed.learning),
+      wellness: normalizeBlockedGroup(parsed.wellness),
+    };
+  } catch {
+    return createEmptyBlockedTaskSuggestions();
+  }
+};
+
 const loadHiddenTaskSuggestions = (): HiddenTaskSuggestionsByDate => {
   try {
     const raw = localStorage.getItem(HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY);
@@ -383,16 +436,6 @@ const addSheetSection = (
   rows.push(...dataRows);
 };
 
-const setSheetColumns = (sheet: XLSX.WorkSheet, widths: number[]) => {
-  sheet['!cols'] = widths.map((wch) => ({ wch }));
-};
-
-const makeWorksheet = (rows: SheetValue[][], widths: number[]) => {
-  const worksheet = XLSX.utils.aoa_to_sheet(rows);
-  setSheetColumns(worksheet, widths);
-  return worksheet;
-};
-
 const startOfWeek = (date: Date) => {
   const result = new Date(date);
   result.setHours(0, 0, 0, 0);
@@ -428,9 +471,11 @@ export default function App() {
   const [jobStrategyNotes, setJobStrategyNotes] = useState<JobStrategyNote[]>(() => loadJobStrategyNotes());
   const [learningResources, setLearningResources] = useState<LearningResource[]>(() => loadLearningResources());
   const [hiddenTaskSuggestions, setHiddenTaskSuggestions] = useState<HiddenTaskSuggestionsByDate>(() => loadHiddenTaskSuggestions());
+  const [blockedTaskSuggestions, setBlockedTaskSuggestions] = useState<BlockedTaskSuggestions>(() => loadBlockedTaskSuggestions());
   const [citation, setCitation] = useState<string>(() => loadCitation());
   const [progressView, setProgressView] = useState<'day' | 'week' | 'month'>('day');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingBlockedSuggestion, setPendingBlockedSuggestion] = useState<PendingBlockedSuggestion>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
   const [dragOverPosition, setDragOverPosition] = useState<DropPosition | null>(null);
@@ -441,6 +486,15 @@ export default function App() {
     { type: 'learning' as const, label: taskConfig.learning.label, color: taskConfig.learning.progress },
     { type: 'wellness' as const, label: taskConfig.wellness.label, color: taskConfig.wellness.progress },
   ];
+  const rollingWeekEnd = new Date(selectedDate);
+  rollingWeekEnd.setHours(23, 59, 59, 999);
+  const rollingWeekStart = new Date(selectedDate);
+  rollingWeekStart.setHours(0, 0, 0, 0);
+  rollingWeekStart.setDate(rollingWeekStart.getDate() - 6);
+  const tasksForSelectedWeek = tasks.filter((task) => {
+    const taskDate = new Date(`${task.date}T00:00:00`);
+    return taskDate >= rollingWeekStart && taskDate <= rollingWeekEnd;
+  });
 
   const currentMonthlyGoalsKey = formatMonthKey(monthlyGoalsMonth);
   const monthlyGoalsForSelectedMonth = monthlyGoals.filter((goal) => goal.month === currentMonthlyGoalsKey);
@@ -449,7 +503,7 @@ export default function App() {
   const hiddenSuggestionsForSelectedDate = hiddenTaskSuggestions[selectedDateStr] ?? createEmptyHiddenTaskSuggestionGroups();
   const taskTitleSuggestions = taskTypes.reduce<Record<'job' | 'learning' | 'wellness', string[]>>(
     (accumulator, taskType) => {
-      const titleCounts = tasks
+      const titleCounts = tasksForSelectedWeek
         .filter((task) => task.type === taskType)
         .reduce<Record<string, number>>((counts, task) => {
           const trimmedTitle = task.title.trim();
@@ -466,6 +520,10 @@ export default function App() {
         .map(([title, count]) => [title, count] as [string, number])
         .filter(([, count]) => count > 1)
         .filter(([title]) => !hiddenSuggestionsForSelectedDate[taskType].includes(title))
+        .filter(([title, count]) => {
+          const blockedAtCount = blockedTaskSuggestions[taskType][title];
+          return blockedAtCount === undefined || count > blockedAtCount;
+        })
         .sort((firstEntry, secondEntry) => secondEntry[1] - firstEntry[1] || firstEntry[0].localeCompare(secondEntry[0]))
         .map(([title]) => title);
 
@@ -902,6 +960,14 @@ export default function App() {
 
   useEffect(() => {
     try {
+      localStorage.setItem(BLOCKED_TASK_SUGGESTIONS_STORAGE_KEY, JSON.stringify(blockedTaskSuggestions));
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [blockedTaskSuggestions]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem(CITATION_STORAGE_KEY, citation);
     } catch {
       // silent fail on unsupported environments
@@ -1049,7 +1115,49 @@ export default function App() {
     }));
   };
 
-  const handleExportData = () => {
+  const handleBlockTaskSuggestionForever = (taskType: 'job' | 'learning' | 'wellness', title: string) => {
+    const currentRepeatCount = tasksForSelectedWeek.filter(
+      (task) => task.type === taskType && task.title.trim() === title
+    ).length;
+
+    setBlockedTaskSuggestions((previousSuggestions) => ({
+      ...previousSuggestions,
+      [taskType]: {
+        ...previousSuggestions[taskType],
+        [title]: Math.max(currentRepeatCount, 2),
+      },
+    }));
+  };
+
+  const handleOpenBlockSuggestionModal = (taskType: 'job' | 'learning' | 'wellness', title: string) => {
+    setPendingBlockedSuggestion({ title, type: taskType });
+  };
+
+  const handleCloseBlockSuggestionModal = () => {
+    setPendingBlockedSuggestion(null);
+  };
+
+  const handleConfirmBlockSuggestion = () => {
+    if (!pendingBlockedSuggestion) {
+      return;
+    }
+
+    handleBlockTaskSuggestionForever(pendingBlockedSuggestion.type, pendingBlockedSuggestion.title);
+    setPendingBlockedSuggestion(null);
+  };
+
+  const handleExportData = async () => {
+    const XLSX = await import('xlsx');
+    const setSheetColumns = (sheet: { ['!cols']?: Array<{ wch: number }> }, widths: number[]) => {
+      sheet['!cols'] = widths.map((wch) => ({ wch }));
+    };
+
+    const makeWorksheet = (rows: SheetValue[][], widths: number[]) => {
+      const worksheet = XLSX.utils.aoa_to_sheet(rows);
+      setSheetColumns(worksheet, widths);
+      return worksheet;
+    };
+
     const exportedAt = new Date().toISOString();
     const workbook = XLSX.utils.book_new();
     const todayKey = formatDateToString(today);
@@ -1334,25 +1442,31 @@ export default function App() {
   };
 
   const renderTrackerPage = (page: Exclude<AppPage, 'journal'>) => {
+    const fallback = (
+      <div className="rounded-2xl bg-white p-6 shadow-sm text-sm text-on-surface-variant">Loading...</div>
+    );
+
     if (page === 'job-search') {
       return (
         <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
-          <div className="max-w-7xl mx-auto space-y-4">
-            {renderCompactTrackerSections('job')}
-            <JobApplicationTracker
-              applications={jobApplications}
-              strategyNotes={jobStrategyNotesForSelectedMonth}
-              strategyMonth={jobStrategyMonth}
-              onAddApplication={handleAddJobApplication}
-              onUpdateApplication={handleUpdateJobApplication}
-              onDeleteApplication={handleDeleteJobApplication}
-              onPrevStrategyMonth={handlePrevJobStrategyMonth}
-              onNextStrategyMonth={handleNextJobStrategyMonth}
-              onAddStrategyNote={handleAddJobStrategyNote}
-              onUpdateStrategyNote={handleUpdateJobStrategyNote}
-              onDeleteStrategyNote={handleDeleteJobStrategyNote}
-            />
-          </div>
+          <Suspense fallback={fallback}>
+            <div className="max-w-7xl mx-auto space-y-4">
+              {renderCompactTrackerSections('job')}
+              <JobApplicationTracker
+                applications={jobApplications}
+                strategyNotes={jobStrategyNotesForSelectedMonth}
+                strategyMonth={jobStrategyMonth}
+                onAddApplication={handleAddJobApplication}
+                onUpdateApplication={handleUpdateJobApplication}
+                onDeleteApplication={handleDeleteJobApplication}
+                onPrevStrategyMonth={handlePrevJobStrategyMonth}
+                onNextStrategyMonth={handleNextJobStrategyMonth}
+                onAddStrategyNote={handleAddJobStrategyNote}
+                onUpdateStrategyNote={handleUpdateJobStrategyNote}
+                onDeleteStrategyNote={handleDeleteJobStrategyNote}
+              />
+            </div>
+          </Suspense>
         </main>
       );
     }
@@ -1360,15 +1474,17 @@ export default function App() {
     if (page === 'learning-hub') {
       return (
         <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
-          <div className="max-w-7xl mx-auto space-y-4">
-            {renderCompactTrackerSections('learning')}
-            <LearningResourcesTracker
-              resources={learningResources}
-              onAddResource={handleAddLearningResource}
-              onUpdateResource={handleUpdateLearningResource}
-              onDeleteResource={handleDeleteLearningResource}
-            />
-          </div>
+          <Suspense fallback={fallback}>
+            <div className="max-w-7xl mx-auto space-y-4">
+              {renderCompactTrackerSections('learning')}
+              <LearningResourcesTracker
+                resources={learningResources}
+                onAddResource={handleAddLearningResource}
+                onUpdateResource={handleUpdateLearningResource}
+                onDeleteResource={handleDeleteLearningResource}
+              />
+            </div>
+          </Suspense>
         </main>
       );
     }
@@ -1376,10 +1492,12 @@ export default function App() {
     if (page === 'wellness-tracker') {
       return (
         <main className="lg:ml-56 pt-20 pb-10 px-4 min-h-screen">
-          <div className="max-w-7xl mx-auto space-y-4">
-            {renderCompactTrackerSections('wellness')}
-            <WellnessMeditationTimer />
-          </div>
+          <Suspense fallback={fallback}>
+            <div className="max-w-7xl mx-auto space-y-4">
+              {renderCompactTrackerSections('wellness')}
+              <WellnessMeditationTimer />
+            </div>
+          </Suspense>
         </main>
       );
     }
@@ -1445,8 +1563,14 @@ export default function App() {
                                     event.stopPropagation();
                                     handleDeleteTaskSuggestion(suggestedTask.type, suggestedTask.title);
                                   }}
+                                  onContextMenu={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    handleOpenBlockSuggestionModal(suggestedTask.type, suggestedTask.title);
+                                  }}
                                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-on-surface-variant/50 transition-all hover:bg-red-50 hover:text-red-500"
                                   aria-label={`Dismiss suggested task ${suggestedTask.title}`}
+                                  title="Click to hide today. Right-click to never suggest again."
                                 >
                                   <X size={15} />
                                 </button>
@@ -1536,6 +1660,50 @@ export default function App() {
         </main>
       ) : (
         renderTrackerPage(activePage)
+      )}
+
+      {pendingBlockedSuggestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-headline font-bold text-on-surface">Never Suggest Again</h2>
+              <button
+                type="button"
+                onClick={handleCloseBlockSuggestionModal}
+                className="p-2 rounded-lg hover:bg-surface-container transition-colors"
+                aria-label="Close never suggest again dialog"
+              >
+                <X size={20} className="text-on-surface-variant" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <p className="text-sm font-bold text-on-surface">{pendingBlockedSuggestion.title}</p>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseBlockSuggestionModal}
+                  className="flex-1 py-2 px-4 rounded-lg font-headline font-bold text-sm bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBlockSuggestion}
+                  className="flex-1 py-2 px-4 rounded-lg font-headline font-bold text-sm bg-primary text-on-primary hover:shadow-lg transition-all"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       <NewTaskModal

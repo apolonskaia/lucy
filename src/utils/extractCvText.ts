@@ -1,12 +1,10 @@
-import mammoth from 'mammoth';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-
-GlobalWorkerOptions.workerSrc = pdfWorker;
-
 const extractPdfText = async (file: File) => {
+  const pdfjs = await import('pdfjs-dist');
+  const pdfWorker = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await getDocument({ data: arrayBuffer }).promise;
+  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
   const pageTexts = await Promise.all(
     Array.from({ length: pdf.numPages }, async (_entry, index) => {
       const page = await pdf.getPage(index + 1);
@@ -22,6 +20,7 @@ const extractPdfText = async (file: File) => {
 };
 
 const extractDocxText = async (file: File) => {
+  const mammoth = await import('mammoth');
   const arrayBuffer = await file.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer });
   return result.value.trim();
