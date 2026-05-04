@@ -808,7 +808,35 @@ export default function App() {
       type: taskData.type,
     };
 
-    setTasks((prevTasks) => [...prevTasks, newTask]);
+    setTasks((prevTasks) => {
+      const firstCompletedIndex = prevTasks.findIndex(
+        (task) => task.date === selectedDateStr && task.status === 'completed'
+      );
+
+      if (firstCompletedIndex !== -1) {
+        return [
+          ...prevTasks.slice(0, firstCompletedIndex),
+          newTask,
+          ...prevTasks.slice(firstCompletedIndex),
+        ];
+      }
+
+      const selectedDateIndexes = prevTasks.reduce<number[]>((indexes, task, index) => {
+        if (task.date === selectedDateStr) {
+          indexes.push(index);
+        }
+
+        return indexes;
+      }, []);
+
+      if (selectedDateIndexes.length === 0) {
+        return [...prevTasks, newTask];
+      }
+
+      const insertionIndex = selectedDateIndexes[selectedDateIndexes.length - 1] + 1;
+
+      return [...prevTasks.slice(0, insertionIndex), newTask, ...prevTasks.slice(insertionIndex)];
+    });
   };
 
   const handleAddSuggestedTask = (taskData: { title: string; type: 'job' | 'learning' | 'wellness' }) => {
