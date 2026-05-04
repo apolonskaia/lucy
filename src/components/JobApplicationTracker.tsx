@@ -1,7 +1,5 @@
 import { ExternalLink, LoaderCircle, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { analyzeCvMatch } from '../utils/analyzeCvMatch';
-import { extractCvText } from '../utils/extractCvText';
 import { CvAnalysis, JobApplication, JobApplicationStatus, JobApplicationType, JobStrategyNote } from '../types';
 import JobStrategyNotes from './JobStrategyNotes';
 
@@ -323,6 +321,7 @@ export default function JobApplicationTracker({
     setAnalysisError(null);
 
     try {
+      const { extractCvText } = await import('../utils/extractCvText');
       const extractedText = await extractCvText(file);
       const nextDraft = {
         ...analysisDraft,
@@ -361,6 +360,7 @@ export default function JobApplicationTracker({
     setIsAnalyzing(true);
 
     try {
+      const { analyzeCvMatch } = await import('../utils/analyzeCvMatch');
       const analysis = await analyzeCvMatch({
         jobTitle: analysisTarget.jobTitle,
         company: analysisTarget.company,
