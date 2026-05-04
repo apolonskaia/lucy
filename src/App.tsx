@@ -490,7 +490,7 @@ export default function App() {
   rollingWeekEnd.setHours(23, 59, 59, 999);
   const rollingWeekStart = new Date(selectedDate);
   rollingWeekStart.setHours(0, 0, 0, 0);
-  rollingWeekStart.setDate(rollingWeekStart.getDate() - 6);
+  rollingWeekStart.setDate(rollingWeekStart.getDate() - 13);
   const tasksForSelectedWeek = tasks.filter((task) => {
     const taskDate = new Date(`${task.date}T00:00:00`);
     return taskDate >= rollingWeekStart && taskDate <= rollingWeekEnd;
