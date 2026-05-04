@@ -1,4 +1,4 @@
-import { ArrowRight, GripVertical, Trash2 } from 'lucide-react';
+import { ArrowRight, GripVertical, X } from 'lucide-react';
 import { useEffect, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { Task } from '../types';
 import { motion } from 'motion/react';
@@ -103,6 +103,16 @@ export default function TaskItem({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          <div
+            draggable
+            onDragStart={(event) => onDragStart?.(event, task.id)}
+            onDragEnd={onDragEnd}
+            className="flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-md text-on-surface-variant/50 opacity-0 transition-all hover:bg-white/60 hover:text-on-surface group-hover:opacity-100 active:cursor-grabbing"
+            aria-label="Drag task"
+          >
+            <GripVertical size={15} />
+          </div>
+
           {showMoveToNextDayAction && onMoveToNextDay && (
             <button
               type="button"
@@ -120,18 +130,8 @@ export default function TaskItem({
             onClick={() => onDelete(task.id)}
             className="h-7 w-7 shrink-0 rounded text-on-surface-variant/50 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
           >
-            <Trash2 size={15} className="mx-auto" />
+            <X size={15} className="mx-auto" />
           </button>
-
-          <div
-            draggable
-            onDragStart={(event) => onDragStart?.(event, task.id)}
-            onDragEnd={onDragEnd}
-            className="flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-md text-on-surface-variant/50 opacity-0 transition-all hover:bg-white/60 hover:text-on-surface group-hover:opacity-100 active:cursor-grabbing"
-            aria-label="Drag task"
-          >
-            <GripVertical size={15} />
-          </div>
 
           {Icon && <Icon size={15} className={`shrink-0 ${palette.icon} ${isCompleted ? 'opacity-50' : ''}`} />}
         </div>

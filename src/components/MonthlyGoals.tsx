@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react';
 import { MonthlyGoal } from '../types';
 import { taskConfig } from '../taskConfig';
 
@@ -28,6 +28,80 @@ interface MonthlyGoalsProps {
   onDeleteGoal: (goalId: string) => void;
 }
 
+interface MonthlyGoalRowProps {
+  goal: MonthlyGoal;
+  onUpdateGoal: (goalId: string, goal: { title: string; type: 'job' | 'learning' | 'wellness' }) => void;
+  onDeleteGoal: (goalId: string) => void;
+}
+
+function MonthlyGoalRow({ goal, onUpdateGoal, onDeleteGoal }: MonthlyGoalRowProps) {
+  const palette = taskConfig[goal.type];
+  const Icon = palette.iconComponent;
+  const [titleDraft, setTitleDraft] = useState(goal.title);
+
+  useEffect(() => {
+    setTitleDraft(goal.title);
+  }, [goal.title]);
+
+  const commitTitle = () => {
+    const trimmedTitle = titleDraft.trim();
+
+    if (!trimmedTitle) {
+      setTitleDraft(goal.title);
+      return;
+    }
+
+    if (trimmedTitle !== goal.title) {
+      onUpdateGoal(goal.id, { title: trimmedTitle, type: goal.type });
+      return;
+    }
+
+    if (trimmedTitle !== titleDraft) {
+      setTitleDraft(trimmedTitle);
+    }
+  };
+
+  const handleTitleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.currentTarget.blur();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      setTitleDraft(goal.title);
+      event.currentTarget.blur();
+    }
+  };
+
+  return (
+    <div
+      className={`group flex h-8 items-center gap-2 px-3 py-1.5 rounded-xl ${palette.background} ${palette.hover} transition-all duration-300 shadow-sm hover:shadow-md`}
+    >
+      <Icon size={15} className={palette.icon} />
+
+      <div className="min-w-0 flex-1">
+        <input
+          type="text"
+          value={titleDraft}
+          onChange={(event) => setTitleDraft(event.target.value)}
+          onBlur={commitTitle}
+          onKeyDown={handleTitleKeyDown}
+          className="min-w-0 w-full rounded-lg border border-transparent bg-transparent px-2 py-0.5 text-sm font-headline font-bold leading-none text-on-surface transition-colors focus:border-outline-variant focus:bg-white/70 focus:outline-none"
+          aria-label="Monthly goal title"
+        />
+      </div>
+
+      <button
+        onClick={() => onDeleteGoal(goal.id)}
+        className="h-7 w-7 shrink-0 rounded text-on-surface-variant/50 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+        aria-label="Delete monthly goal"
+      >
+        <X size={15} className="mx-auto" />
+      </button>
+    </div>
+  );
+}
+
 export default function MonthlyGoals({
   goals,
   currentMonth,
@@ -40,42 +114,24 @@ export default function MonthlyGoals({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<'job' | 'learning' | 'wellness'>('job');
-  const [editingGoal, setEditingGoal] = useState<MonthlyGoal | null>(null);
-
-  useEffect(() => {
-    if (!isModalOpen) return;
-
-    setTitle(editingGoal?.title ?? '');
-    setType(editingGoal?.type ?? 'job');
-  }, [editingGoal, isModalOpen]);
 
   const handleSaveGoal = () => {
     if (!title.trim()) return;
 
-    if (editingGoal) {
-      onUpdateGoal(editingGoal.id, { title: title.trim(), type });
-    } else {
-      onAddGoal({ title: title.trim(), type });
-    }
+    onAddGoal({ title: title.trim(), type });
 
     setTitle('');
     setType('job');
-    setEditingGoal(null);
     setIsModalOpen(false);
   };
 
   const handleOpenNewGoalModal = () => {
-    setEditingGoal(null);
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEditGoalModal = (goal: MonthlyGoal) => {
-    setEditingGoal(goal);
+    setTitle('');
+    setType('job');
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
-    setEditingGoal(null);
     setTitle('');
     setType('job');
     setIsModalOpen(false);
@@ -112,39 +168,14 @@ export default function MonthlyGoals({
               No monthly goals yet for this month.
             </div>
           ) : (
-            goals.map((goal) => {
-              const palette = taskConfig[goal.type];
-              const Icon = palette.iconComponent;
-
-              return (
-                <div
-                  key={goal.id}
-                  className={`group flex h-8 items-center gap-2 px-3 py-1.5 rounded-xl ${palette.background} ${palette.hover} transition-all duration-300 shadow-sm hover:shadow-md`}
-                >
-                  <Icon size={15} className={palette.icon} />
-
-                  <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-headline font-bold leading-none text-on-surface">{goal.title}</h3>
-                  </div>
-
-                  <button
-                    onClick={() => handleOpenEditGoalModal(goal)}
-                    className="h-7 w-7 shrink-0 rounded text-on-surface-variant/50 opacity-0 transition-opacity hover:bg-white/60 hover:text-on-surface group-hover:opacity-100"
-                    aria-label="Edit monthly goal"
-                  >
-                    <Pencil size={15} className="mx-auto" />
-                  </button>
-
-                  <button
-                    onClick={() => onDeleteGoal(goal.id)}
-                    className="h-7 w-7 shrink-0 rounded text-on-surface-variant/50 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
-                    aria-label="Delete monthly goal"
-                  >
-                    <Trash2 size={15} className="mx-auto" />
-                  </button>
-                </div>
-              );
-            })
+            goals.map((goal) => (
+              <MonthlyGoalRow
+                key={goal.id}
+                goal={goal}
+                onUpdateGoal={onUpdateGoal}
+                onDeleteGoal={onDeleteGoal}
+              />
+            ))
           )}
         </div>
       </section>
@@ -154,7 +185,7 @@ export default function MonthlyGoals({
           <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-headline font-bold text-on-surface">
-                {editingGoal ? 'Edit Monthly Goal' : 'New Monthly Goal'}
+                New Monthly Goal
               </h3>
               <button
                 onClick={handleCloseModal}
@@ -208,7 +239,7 @@ export default function MonthlyGoals({
                   onClick={handleSaveGoal}
                   className="rounded-lg px-4 py-2 text-sm font-headline font-bold bg-primary text-on-primary hover:bg-primary/90 transition-colors"
                 >
-                  {editingGoal ? 'Save Goal' : 'Add Goal'}
+                  Add Goal
                 </button>
               </div>
             </div>
