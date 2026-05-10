@@ -3,10 +3,11 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 
-export default defineConfig(({mode}) => {
+export default defineConfig(({command, mode}) => {
   loadEnv(mode, '.', '');
+
   return {
-    base: '/lucy/',
+    base: command === 'serve' ? '/' : '/lucy/',
     plugins: [react(), tailwindcss()],
     build: {
       rollupOptions: {

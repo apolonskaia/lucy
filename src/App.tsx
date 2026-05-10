@@ -585,13 +585,17 @@ export default function App() {
 
   const progressItems = buildProgressItems(progressView);
   const isSelectedDateToday = isSameDay(selectedDate, today);
+  const earliestSuggestedTaskDate = new Date(today);
+  earliestSuggestedTaskDate.setHours(0, 0, 0, 0);
+  earliestSuggestedTaskDate.setDate(earliestSuggestedTaskDate.getDate() - 1);
+  const shouldShowSuggestedTasks = selectedDate >= earliestSuggestedTaskDate;
   const suggestedTaskOutlineClasses = {
     job: 'border-[#fdecb0]',
     learning: 'border-violet-100',
     wellness: 'border-lime-100',
   } as const;
   const tasksForSelectedDate = tasks.filter((task) => task.date === selectedDateStr);
-  const suggestedTasksForSelectedDate = taskTypes.flatMap((taskType) => {
+  const suggestedTasksForSelectedDate = shouldShowSuggestedTasks ? taskTypes.flatMap((taskType) => {
     const titlesForSelectedDate = new Set(
       tasksForSelectedDate
         .filter((task) => task.type === taskType)
@@ -605,7 +609,7 @@ export default function App() {
         title,
         type: taskType,
       }));
-  });
+  }) : [];
 
   const formatDateDisplay = (date: Date): string => {
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
