@@ -5,10 +5,8 @@ import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
   loadEnv(mode, '.', '');
-  const base = mode === 'development' ? '/' : '/lucy/';
-
   return {
-    base,
+    base: '/lucy/',
     plugins: [react(), tailwindcss()],
     build: {
       rollupOptions: {
