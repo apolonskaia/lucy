@@ -486,14 +486,14 @@ export default function App() {
     { type: 'learning' as const, label: taskConfig.learning.label, color: taskConfig.learning.progress },
     { type: 'wellness' as const, label: taskConfig.wellness.label, color: taskConfig.wellness.progress },
   ];
-  const rollingWeekEnd = new Date(selectedDate);
-  rollingWeekEnd.setHours(23, 59, 59, 999);
-  const rollingWeekStart = new Date(selectedDate);
-  rollingWeekStart.setHours(0, 0, 0, 0);
-  rollingWeekStart.setDate(rollingWeekStart.getDate() - 13);
-  const tasksForSelectedWeek = tasks.filter((task) => {
+  const lastMonthEnd = new Date(selectedDate);
+  lastMonthEnd.setHours(23, 59, 59, 999);
+  const lastMonthStart = new Date(selectedDate);
+  lastMonthStart.setHours(0, 0, 0, 0);
+  lastMonthStart.setDate(lastMonthStart.getDate() - 29);
+  const tasksForLastMonth = tasks.filter((task) => {
     const taskDate = new Date(`${task.date}T00:00:00`);
-    return taskDate >= rollingWeekStart && taskDate <= rollingWeekEnd;
+    return taskDate >= lastMonthStart && taskDate <= lastMonthEnd;
   });
 
   const currentMonthlyGoalsKey = formatMonthKey(monthlyGoalsMonth);
@@ -501,9 +501,15 @@ export default function App() {
   const currentJobStrategyKey = formatMonthKey(jobStrategyMonth);
   const jobStrategyNotesForSelectedMonth = jobStrategyNotes.filter((note) => note.month === currentJobStrategyKey);
   const hiddenSuggestionsForSelectedDate = hiddenTaskSuggestions[selectedDateStr] ?? createEmptyHiddenTaskSuggestionGroups();
-  const taskTitleSuggestions = taskTypes.reduce<Record<'job' | 'learning' | 'wellness', string[]>>(
+  const buildTaskTitleSuggestions = (
+    sourceTasks: Task[],
+    options?: {
+      hiddenSuggestions?: Record<TaskType, string[]>;
+      blockedSuggestions?: BlockedTaskSuggestions;
+    }
+  ) => taskTypes.reduce<Record<'job' | 'learning' | 'wellness', string[]>>(
     (accumulator, taskType) => {
-      const titleCounts = tasksForSelectedWeek
+      const titleCounts = sourceTasks
         .filter((task) => task.type === taskType)
         .reduce<Record<string, number>>((counts, task) => {
           const trimmedTitle = task.title.trim();
@@ -519,9 +525,9 @@ export default function App() {
       accumulator[taskType] = Object.entries(titleCounts)
         .map(([title, count]) => [title, count] as [string, number])
         .filter(([, count]) => count > 1)
-        .filter(([title]) => !hiddenSuggestionsForSelectedDate[taskType].includes(title))
+        .filter(([title]) => !options?.hiddenSuggestions?.[taskType]?.includes(title))
         .filter(([title, count]) => {
-          const blockedAtCount = blockedTaskSuggestions[taskType][title];
+          const blockedAtCount = options?.blockedSuggestions?.[taskType]?.[title];
           return blockedAtCount === undefined || count > blockedAtCount;
         })
         .sort((firstEntry, secondEntry) => secondEntry[1] - firstEntry[1] || firstEntry[0].localeCompare(secondEntry[0]))
@@ -535,6 +541,11 @@ export default function App() {
       wellness: [],
     }
   );
+  const newTaskModalSuggestions = buildTaskTitleSuggestions(tasks);
+  const taskListSuggestions = buildTaskTitleSuggestions(tasksForLastMonth, {
+    hiddenSuggestions: hiddenSuggestionsForSelectedDate,
+    blockedSuggestions: blockedTaskSuggestions,
+  });
 
 
   const getWeekRange = (date: Date) => {
@@ -603,7 +614,7 @@ export default function App() {
         .filter(Boolean)
     );
 
-    return taskTitleSuggestions[taskType]
+    return taskListSuggestions[taskType]
       .filter((title) => !titlesForSelectedDate.has(title.trim().toLowerCase()))
       .map((title) => ({
         title,
@@ -1742,7 +1753,7 @@ export default function App() {
         isOpen={isModalOpen}
         onClose={handleCloseTaskModal}
         onSubmitTask={handleSubmitTask}
-        suggestions={taskTitleSuggestions}
+        suggestions={newTaskModalSuggestions}
         onDeleteSuggestion={handleDeleteTaskSuggestion}
       />
     </div>
