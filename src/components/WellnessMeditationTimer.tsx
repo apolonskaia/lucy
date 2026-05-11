@@ -1,7 +1,7 @@
 import { Pause, Play, RotateCcw, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-const durationOptions = [2, 5, 7, 10] as const;
+const durationOptions = [1, 2, 5, 7, 10] as const;
 
 type ToneKind = 'start' | 'minute' | 'end';
 type ToneStep = {
@@ -22,16 +22,16 @@ const formatTime = (totalSeconds: number) => {
 
 const tonePatterns: Record<ToneKind, ToneStep[]> = {
   start: [
-    { frequency: 196, duration: 0.72, delay: 0, waveform: 'sine', peakGain: 0.07 },
-    { frequency: 246.94, duration: 0.56, delay: 0.34, waveform: 'sine', peakGain: 0.05 },
+    { frequency: 200, duration: 10, delay: 0, waveform: 'sine', peakGain: 1 },
+    // { frequency: 246.94, duration: 0.56, delay: 0.34, waveform: 'sine', peakGain: 0.05 },
   ],
   minute: [
-    { frequency: 196, duration: 0.72, delay: 0, waveform: 'sine', peakGain: 0.07 },
-    { frequency: 246.94, duration: 0.56, delay: 0.34, waveform: 'sine', peakGain: 0.05 },
+    { frequency: 250, duration: 5, delay: 0, waveform: 'sine', peakGain: 1 },
+    // { frequency: 246.94, duration: 0.56, delay: 0.34, waveform: 'sine', peakGain: 0.05 },
   ],
   end: [
-    { frequency: 523.25, duration: 0.18, delay: 0, waveform: 'sine', peakGain: 0.08 },
-    { frequency: 659.25, duration: 0.12, delay: 0.1, waveform: 'sine', peakGain: 0.055 },
+    { frequency: 500, duration: 0.2, delay: 0, waveform: 'sine', peakGain: 1 },
+    // { frequency: 659.25, duration: 0.12, delay: 0.1, waveform: 'sine', peakGain: 0.055 },
   ],
 };
 
