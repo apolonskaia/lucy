@@ -29,7 +29,8 @@ Stay tuned
    `npm install`
 2. Create `.env.local` or `.env` with:
    - `GEMINI_API_KEY`
-   - optional `GEMINI_MODEL`
+   - optional `GEMINI_MODEL` (defaults to `gemini-2.5-flash`)
+   - optional `GEMINI_FALLBACK_MODELS` as a comma-separated list of valid model names for your Gemini account/API version
    - optional `API_PORT`
 3. Run the API server in one terminal:
    `npm run dev:api`

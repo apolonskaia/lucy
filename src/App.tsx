@@ -8,7 +8,7 @@ import Calendar from './components/Calendar';
 import ProgressMatrix from './components/ProgressMatrix';
 import NewTaskModal from './components/NewTaskModal';
 import MonthlyGoals from './components/MonthlyGoals';
-import { AppPage, JobApplication, JobStrategyNote, LearningResource, MonthlyGoal, ProgressItem, Task } from './types';
+import { AppPage, CvSource, JobApplication, JobStrategyNote, LearningResource, MonthlyGoal, ProgressItem, Task } from './types';
 import { taskConfig } from './taskConfig';
 
 const JobApplicationTracker = lazy(() => import('./components/JobApplicationTracker'));
@@ -57,6 +57,7 @@ const mockTasks: Task[] = [
 const STORAGE_KEY = 'lucy-tasks-v1';
 const MONTHLY_GOALS_STORAGE_KEY = 'lucy-monthly-goals-v1';
 const JOB_APPLICATIONS_STORAGE_KEY = 'lucy-job-applications-v1';
+const CV_SOURCES_STORAGE_KEY = 'lucy-cv-sources-v1';
 const JOB_STRATEGY_NOTES_STORAGE_KEY = 'lucy-job-strategy-notes-v1';
 const LEARNING_RESOURCES_STORAGE_KEY = 'lucy-learning-resources-v1';
 const HIDDEN_TASK_SUGGESTIONS_STORAGE_KEY = 'lucy-hidden-task-suggestions-v1';
@@ -201,6 +202,17 @@ const loadJobApplications = (): JobApplication[] => {
     return Array.isArray(parsed) ? parsed : createMockJobApplications();
   } catch {
     return createMockJobApplications();
+  }
+};
+
+const loadCvSources = (): CvSource[] => {
+  try {
+    const raw = localStorage.getItem(CV_SOURCES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: CvSource[] = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
 };
 
@@ -467,6 +479,7 @@ export default function App() {
   const [monthlyGoalsMonth, setMonthlyGoalsMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
   const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoal[]>(() => loadMonthlyGoals());
   const [jobApplications, setJobApplications] = useState<JobApplication[]>(() => loadJobApplications());
+  const [cvSources, setCvSources] = useState<CvSource[]>(() => loadCvSources());
   const [jobStrategyMonth, setJobStrategyMonth] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
   const [jobStrategyNotes, setJobStrategyNotes] = useState<JobStrategyNote[]>(() => loadJobStrategyNotes());
   const [learningResources, setLearningResources] = useState<LearningResource[]>(() => loadLearningResources());
@@ -979,6 +992,14 @@ export default function App() {
 
   useEffect(() => {
     try {
+      localStorage.setItem(CV_SOURCES_STORAGE_KEY, JSON.stringify(cvSources));
+    } catch {
+      // silent fail on unsupported environments
+    }
+  }, [cvSources]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem(JOB_STRATEGY_NOTES_STORAGE_KEY, JSON.stringify(jobStrategyNotes));
     } catch {
       // silent fail on unsupported environments
@@ -1092,6 +1113,28 @@ export default function App() {
     setJobApplications((previousApplications) =>
       previousApplications.filter((application) => application.id !== applicationId)
     );
+  };
+
+  const handleAddCvSource = (source: Omit<CvSource, 'id'>) => {
+    setCvSources((previousSources) => [
+      {
+        id: Math.random().toString(36).slice(2, 11),
+        ...source,
+      },
+      ...previousSources,
+    ]);
+  };
+
+  const handleUpdateCvSource = (sourceId: string, updatedSource: Omit<CvSource, 'id'>) => {
+    setCvSources((previousSources) =>
+      previousSources.map((source) =>
+        source.id === sourceId ? { id: source.id, ...updatedSource } : source
+      )
+    );
+  };
+
+  const handleDeleteCvSource = (sourceId: string) => {
+    setCvSources((previousSources) => previousSources.filter((source) => source.id !== sourceId));
   };
 
   const handleAddJobStrategyNote = (note: { title: string }) => {
@@ -1497,11 +1540,15 @@ export default function App() {
               {renderCompactTrackerSections('job')}
               <JobApplicationTracker
                 applications={jobApplications}
+                cvSources={cvSources}
                 strategyNotes={jobStrategyNotesForSelectedMonth}
                 strategyMonth={jobStrategyMonth}
                 onAddApplication={handleAddJobApplication}
                 onUpdateApplication={handleUpdateJobApplication}
                 onDeleteApplication={handleDeleteJobApplication}
+                onAddCvSource={handleAddCvSource}
+                onUpdateCvSource={handleUpdateCvSource}
+                onDeleteCvSource={handleDeleteCvSource}
                 onPrevStrategyMonth={handlePrevJobStrategyMonth}
                 onNextStrategyMonth={handleNextJobStrategyMonth}
                 onAddStrategyNote={handleAddJobStrategyNote}

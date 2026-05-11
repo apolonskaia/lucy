@@ -76,3 +76,228 @@
   border: 2px solid #ffffff;
   box-shadow: 0 0 0 2px #ffffff;
 }
+
+.cv-doc-editor {
+  min-height: 820px;
+}
+
+.cv-doc-page {
+  position: relative;
+  min-height: 1056px;
+  width: min(100%, 816px);
+  margin: 0 auto;
+  padding: 62px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.1);
+}
+
+.cv-doc-page__header {
+  margin-bottom: 1.35rem;
+}
+
+.cv-doc-page__title {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 1.62rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #111827;
+}
+
+.cv-doc-page__contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  margin-top: 0.45rem;
+  font-family: Arial, sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #374151;
+}
+
+.cv-doc-page__summary {
+  margin-top: 1rem;
+}
+
+.cv-doc-page__section-label {
+  margin: 0;
+  padding-bottom: 0.32rem;
+  border-bottom: 1px solid #1f2937;
+  font-family: Arial, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #1f2937;
+}
+
+.cv-doc-page__summary-copy {
+  margin: 0.55rem 0 0;
+  font-family: Arial, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: #111827;
+  white-space: pre-wrap;
+}
+
+.cv-doc-editor__surface {
+  min-height: 720px;
+  outline: none;
+  color: #111827;
+  font-family: Arial, sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.cv-doc-editor__surface > * + * {
+  margin-top: 0.5rem;
+}
+
+.cv-doc-section-heading {
+  margin-top: 1.15rem;
+  padding-bottom: 0.32rem;
+  border-bottom: 1px solid #1f2937;
+  font-family: Arial, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #1f2937;
+}
+
+.cv-doc-section-heading:first-child {
+  margin-top: 0;
+}
+
+.cv-doc-line {
+  position: relative;
+  padding-left: 1rem;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.cv-doc-line::before {
+  content: "•";
+  position: absolute;
+  left: 0.05rem;
+  top: 0;
+  color: #111827;
+  font-weight: 700;
+}
+
+.cv-doc-line.is-suggested {
+  color: #111827;
+  border-radius: 0.5rem;
+}
+
+.cv-doc-line.is-suggested::before {
+  color: #111827;
+}
+
+.cv-doc-line.has-suggestion::after {
+  content: "AI " attr(data-suggestion-count);
+  position: absolute;
+  left: -4.65rem;
+  top: 0.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.3rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 9999px;
+  background: #e5eef8;
+  color: #34507a;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.cv-doc-line.is-accepted {
+  color: #111827;
+}
+
+.cv-doc-suggestion-mark {
+  border-radius: 0.35rem;
+  background: linear-gradient(90deg, rgba(219, 234, 254, 0.95), rgba(191, 219, 254, 0.7));
+  color: #111827;
+  box-shadow: inset 0 -1px 0 rgba(52, 80, 122, 0.22);
+}
+
+.cv-doc-suggestion-mark::selection {
+  background: rgba(191, 219, 254, 0.9);
+}
+
+.cv-doc-suggestion-popup {
+  position: fixed;
+  z-index: 80;
+  width: min(320px, calc(100vw - 32px));
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.cv-doc-suggestion-popup::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 16px;
+  height: 16px;
+  border-right: 1px solid rgba(148, 163, 184, 0.35);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.98);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.cv-doc-suggestion-popup__actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 0.8rem;
+}
+
+.cv-doc-suggestion-popup__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  border-radius: 9999px;
+  padding: 0.45rem 0.8rem;
+  font-family: Arial, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cv-doc-suggestion-popup__button--accept {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.cv-doc-suggestion-popup__button--decline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.cv-doc-suggestion-popup__meta {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 0.75rem 0.9rem 0.85rem;
+  font-family: Arial, sans-serif;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: #475569;
+}
+
+.cv-doc-suggestion-popup__meta p + p {
+  margin-top: 0.45rem;
+}
+
+.cv-doc-editor__surface .ProseMirror-selectednode {
+  outline: 2px solid rgba(38, 58, 97, 0.25);
+  outline-offset: 3px;
+  border-radius: 0.4rem;
+}

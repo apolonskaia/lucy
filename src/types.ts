@@ -31,6 +31,16 @@ export interface LearningResource {
 
 export type JobApplicationType = 'tech' | 'biotech';
 
+export interface CvSource {
+  id: string;
+  name: string;
+  fileName: string;
+  fileType: string;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type JobApplicationStatus =
   | 'saved'
   | 'applied'
@@ -56,6 +66,48 @@ export interface CvAnalysis {
   sectionSuggestions: CvAnalysisSectionSuggestion[];
 }
 
+export type CvBuilderLineStatus = 'accepted' | 'suggested';
+
+export interface CvBuilderSuggestionRange {
+  id: string;
+  start: number;
+  end: number;
+  rationale: string;
+  sourceCvIds: string[];
+}
+
+export interface CvBuilderLine {
+  id: string;
+  text: string;
+  status: CvBuilderLineStatus;
+  sourceCvIds: string[];
+  rationale: string;
+  suggestionRanges?: CvBuilderSuggestionRange[];
+}
+
+export interface CvBuilderSection {
+  id: string;
+  title: string;
+  lines: CvBuilderLine[];
+}
+
+export interface CvBuilderDraft {
+  summary: string;
+  matchScore: number;
+  sourceCvIds: string[];
+  notes: string[];
+  sections: CvBuilderSection[];
+}
+
+export interface SavedCvDraft {
+  id: string;
+  name: string;
+  summary: string;
+  sections: CvBuilderSection[];
+  sourceCvIds: string[];
+  savedAt: string;
+}
+
 export interface JobApplication {
   id: string;
   jobTitle: string;
@@ -64,11 +116,15 @@ export interface JobApplication {
   applicationDate: string;
   status: JobApplicationStatus;
   link: string;
+  selectedCvSourceId?: string;
   cvFileName?: string;
   cvText?: string;
   jobDescription?: string;
   cvAnalysis?: CvAnalysis | null;
+  cvBuilderDraft?: CvBuilderDraft | null;
+  savedCvDrafts?: SavedCvDraft[];
   cvAnalyzedAt?: string;
+  cvBuilderGeneratedAt?: string;
 }
 
 export interface MonthlyGoal {
